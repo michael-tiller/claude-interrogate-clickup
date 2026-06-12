@@ -84,6 +84,9 @@ the files into `.captain-sdlc/` on the next write. Never maintain both copies.
 - `interrogateKeyFieldId` caches the list's `interrogate-key` custom-field id
   (additive optional key, no `version` bump — discovered once per list via
   `Get Custom Fields`; see Idempotency for the dual-write rule).
+- `taskSpecs: true` (OPTIONAL, additive, no `version` bump) enables per-task spec
+  blocks (§ Per-task spec blocks). Absent or `false` → skills do no spec work and
+  spend no spec calls. Configure via `/clickup-setup`.
 - `enabled: false` short-circuits every skill: report "ClickUp sync is disabled for
   this project (.clickup-map.json enabled=false)" and stop. No ClickUp calls, no
   questions.
@@ -106,7 +109,7 @@ the files into `.captain-sdlc/` on the next write. Never maintain both copies.
 ```
 
 - Op vocabulary: `create-list`, `bulk-create-epics`, `bulk-create-items`,
-  `bulk-status-update`, `add-dependency`, `post-comment`.
+  `bulk-status-update`, `add-dependency`, `post-comment`, `update-spec`.
 - `reason` is `"budget-exhausted"` or `"429"`.
 - Ops store **keys, never text** — the drain step re-exports the RC so text is
   current-canonical at execution time. If a queued key no longer exists in the fresh
@@ -169,6 +172,64 @@ artifact.
   stalled" comment on a flip to a blocked status. No footer verb mints a blocked
   transition today (Seam 7 has three verbs); wiring that trigger is an open decision —
   until it lands, this fires only on qa/complete.
+
+## Per-task spec blocks (opt-in: sidecar `taskSpecs: true`)
+
+Each task's description can carry a structured spec block — DOD plus the two
+verification layers — written and renovated at **touch points** (status flips), never
+as a bulk backfill campaign. The block is **derived prose**, same standing as the epic
+DoD seeding: markdown + verification artifacts stay canonical; the block never syncs
+back. Format `spec v1`:
+
+```
+**Definition of Done** _(spec v1)_
+- <binary, observable criteria — what QA actually checks; no prose hedges>
+
+**Automated coverage**
+- <tests/smokes added for THIS task + evidence: suite, count, commit — e.g. "CorpseServiceTests 12/12, v2.63.0 50ebbf70">
+
+**Human QA steps**
+1. <numbered manual script for FUTURE touch passes — e.g. start game; spawn critter, kill it; 2x speed, wait ~Xs; check logs for the message>
+```
+
+Placement: between the item text and the `---` / `interrogate-key:` footer. The
+`_(spec v1)_` marker on the first heading is the version sentinel renovation keys off.
+
+**Touch-point triggers** (only when the flip itself is already being written — spec
+work piggybacks on transitions, it never initiates calls):
+
+| Flip                  | Spec work                                                       |
+| --------------------- | --------------------------------------------------------------- |
+| → in-progress         | Draft/review **Definition of Done** (scope knowledge is freshest at work start) |
+| → qa / complete       | Write **Automated coverage** (from the verification artifact + named suites) and **Human QA steps** (numbered manual script); review DOD against final scope |
+
+In **auto/unattended runs** (flay-auto, no human at the boundary): skip the
+in-progress spec write and batch ALL spec drafting at the end flip (qa/complete),
+tagged `_(auto-drafted — review)_` — one write instead of two, fewer ClickUp
+interactions.
+
+**Sourcing precedence** for drafted content: the key's verification artifact
+(`.captain-sdlc/verifications/<key>.md`) → RC Definition of Done bullets that name the
+item → drafted from the item text. Human QA steps describe player-visible verification
+(launch, perform, observe), not test-runner invocations — those belong in Automated
+coverage.
+
+**Renovation rule (always renovatable).** On any spec-bearing touch, whatever the
+description currently holds renovates into the current format: a bare description gets
+a fresh block; hand-written legacy sections or an older `spec vN` block get parsed and
+their content CARRIED FORWARD into the current shape (never discarded — prior human
+prose becomes bullets in the matching section, unrecognized prose is preserved above
+the block). This is also how the format itself evolves: bump the sentinel, ship the new
+shape, and old tickets upgrade lazily as they're touched — rolling design, no backfill
+pass.
+
+**Costs and safety.** A spec write = 1 `Get Task` (descriptions are absent from bulk
+reads) + 1 `Update Task`, both ledgered and included in the op-plan estimate; over
+budget → queue an `update-spec` op (`rcId`, item `key`, `taskId`, trigger) to
+`pendingOps`. The update MUST rewrite the description as item text + block + key
+footer, preserving the footer exactly. **Rename-remap and any other description
+rewrite MUST preserve an existing spec block** — clobbering it loses human-reviewed
+content.
 
 ## Budget discipline
 

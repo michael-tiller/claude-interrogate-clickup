@@ -32,6 +32,16 @@ sidecar. Output dir defaults to the current working directory.
      `.captain-sdlc/verifications/<key>.md` artifact → post the artifact as a task
      comment, then delete it (protocol § Verification comments). Budget/ledger per call;
      overflow → a `post-comment` op.
+   - **Per-task spec blocks** (only if sidecar `taskSpecs: true`). Spec work piggybacks
+     on flips written this run (protocol § Per-task spec blocks): a key flipped to
+     in-progress → draft/review its **Definition of Done**; flipped to qa/complete →
+     write **Automated coverage** + **Human QA steps** (sourced verification-artifact →
+     RC DoD → item text) and review the DOD. Renovate whatever the description holds
+     into the current `spec v1` shape — carry prior content forward, never discard;
+     preserve the `interrogate-key` footer exactly. 1 `Get Task` + 1 `Update Task` per
+     touched task, ledgered and estimated up front; overflow → an `update-spec` op.
+     Unattended runs: skip the in-progress write, batch all drafting at the end flip
+     tagged `_(auto-drafted — review)_`.
 4. **Rename heuristic.** If one subsection shows both removals AND additions in the
    same run, list the pairs and ask: "renamed (remap key → existing task, 0 calls) or
    genuinely replaced (close + create)?" before spending any calls. A remap updates

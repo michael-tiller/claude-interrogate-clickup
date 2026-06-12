@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.4.0] - 2026-06-12
+
+### Added
+
+- **Per-task spec blocks (opt-in: sidecar `taskSpecs: true`).** Tasks gain a structured
+  description block — **Definition of Done** / **Automated coverage** (tests+smokes added
+  for the task, with evidence) / **Human QA steps** (numbered manual script for future
+  touch passes) — written at **touch points**: DOD drafted/reviewed at the in-progress
+  flip, the two verification sections at the qa/complete flip (sourced
+  verification-artifact → RC DoD → item text). Unattended runs batch all drafting at the
+  end flip tagged `_(auto-drafted — review)_`. **Renovation rule:** any touched task
+  upgrades whatever its description holds (bare, hand-written legacy sections, or an
+  older `spec vN`) into the current shape, content carried forward — lazy retro-
+  application and rolling format evolution, no backfill campaigns. New `update-spec`
+  pendingOps verb; +1 `Get Task` +1 `Update Task` per touched task, ledgered and
+  estimated. Rename-remap and all description rewrites MUST preserve an existing block.
+  `/clickup-setup` gains the toggle; absent/false = zero behavior change, zero spend.
+
 ## [0.3.0] - 2026-06-12
 
 ### Added

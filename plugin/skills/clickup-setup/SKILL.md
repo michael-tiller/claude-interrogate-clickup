@@ -34,11 +34,16 @@ lookup (changing the project Folder or an RC's target list requires one
       `closed`. Optional keys: `inProgress`, `qa` — needed for intermediate-state
       mirroring from the Seam 7 release pass (claude-release-clickup). Statuses
       must exist on the target list; never invent one.
-   6. **Pending ops** — show count/ages; offer to drain now (runs the clickup-sync
+   6. **Per-task spec blocks** — toggle the optional `taskSpecs` key (protocol
+      § Per-task spec blocks). On: status flips also draft/renovate each touched
+      task's DOD / Automated coverage / Human QA steps block (+2 ledgered calls per
+      touched task — warn if budget is tight). Off/absent: no spec work, no spec
+      spend. Works best with `inProgress` + `qa` statusMap keys set.
+   7. **Pending ops** — show count/ages; offer to drain now (runs the clickup-sync
       flow) or to discard specific ops (confirm each discard; discarding is the
       ONLY destructive act in this plugin and touches only the local queue, never
       ClickUp).
-   7. **CLAUDE.md workflow block** — see below.
+   8. **CLAUDE.md workflow block** — see below.
 3. **Write** the sidecar after each change (not once at the end).
 
 ## CLAUDE.md managed block

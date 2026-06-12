@@ -46,7 +46,9 @@ directory (where `roadmap.md` and `.clickup-map.json` live).
    description so the acceptance bar is visible from creation — never its own task
    (principle 3). Write sidecar. One
    bulk create per epic for its items (parent = epic taskId, status from `checked`
-   via statusMap, key in field + footer). Write sidecar after each batch. Ledger
+   via statusMap, key in field + footer). Per-task spec blocks are NOT seeded at
+   creation — touch points own them (protocol § Per-task spec blocks), so a push
+   spends nothing on specs. Write sidecar after each batch. Ledger
    after every call.
 9. **Dependencies.** Only where a blocker resolves to an already-mapped key in this
    sidecar — `Add dependency`. Anything else was already folded into description text
