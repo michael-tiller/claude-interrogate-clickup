@@ -1,0 +1,41 @@
+{
+  "name": "claude-interrogate-clickup",
+  "version": "0.1.0",
+  "description": "Companion plugin to claude-interrogate: mirrors taskout RC checklists one-way into ClickUp via ClickUp's official MCP server.",
+  "author": {
+    "name": "Michael Tiller",
+    "url": "https://github.com/michael-tiller/claude-interrogate-clickup"
+  },
+  "homepage": "https://github.com/michael-tiller/claude-interrogate-clickup",
+  "repository": "https://github.com/michael-tiller/claude-interrogate-clickup",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "clickup",
+    "mcp",
+    "roadmap",
+    "sync"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Claude Interrogate × ClickUp",
+    "shortDescription": "Mirror taskout RC checklists into ClickUp sprints",
+    "longDescription": "Companion to claude-interrogate. Exports release-candidate taskout files via the tracker-neutral design_taskout_export tool and mirrors them one-way into ClickUp Folders/Lists (or existing sprints) using ClickUp's official remote MCP server — with a strict 300-calls-per-24h budget ledger, bulk operations, idempotent crash recovery, and a pending-ops queue. Markdown stays canonical; ClickUp is the mirror.",
+    "developerName": "Michael Tiller",
+    "category": "Coding",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/michael-tiller/claude-interrogate-clickup",
+    "privacyPolicyURL": "https://github.com/michael-tiller/claude-interrogate-clickup",
+    "termsOfServiceURL": "https://github.com/michael-tiller/claude-interrogate-clickup",
+    "defaultPrompt": [
+      "Push RC MRC1_LAUNCH to ClickUp",
+      "Sync my RC checkbox state into ClickUp",
+      "How much ClickUp call budget is left?"
+    ],
+    "brandColor": "#7B68EE"
+  }
+}

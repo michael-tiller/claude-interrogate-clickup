@@ -1,0 +1,4 @@
+# Defensive only — the ledger lives in consuming projects, not this repo.
+# Consuming projects should gitignore .clickup-ledger.json themselves (the
+# README explains why: it churns on every ClickUp call).
+.clickup-ledger.json

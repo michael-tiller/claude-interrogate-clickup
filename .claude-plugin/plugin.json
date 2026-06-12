@@ -1,0 +1,17 @@
+{
+  "name": "claude-interrogate-clickup",
+  "version": "0.1.0",
+  "description": "Companion plugin to claude-interrogate: mirrors taskout RC checklists one-way into ClickUp via ClickUp's official MCP server.",
+  "author": {
+    "name": "Michael Tiller"
+  },
+  "repository": "https://github.com/michael-tiller/claude-interrogate-clickup",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "clickup",
+    "mcp",
+    "roadmap",
+    "sync"
+  ]
+}
