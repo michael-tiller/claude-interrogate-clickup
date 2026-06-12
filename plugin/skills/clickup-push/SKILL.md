@@ -13,7 +13,8 @@ directory (where `roadmap.md` and `.clickup-map.json` live).
 
 ## Steps
 
-1. **Gate.** Load `.clickup-map.json` from the output dir.
+1. **Gate.** Load `.clickup-map.json` from `<output-dir>/.captain-sdlc/` (legacy
+   fallback: the output-dir root — migrate it into `.captain-sdlc/` on next write).
    - `enabled: false` → report disabled, stop.
    - Missing → ask the user: "Initialize ClickUp sync for this project?" Decline →
      write `{ "version": 1, "enabled": false }`, stop.
@@ -39,9 +40,11 @@ directory (where `roadmap.md` and `.clickup-map.json` live).
 7. **Reconcile.** Before-create reconciliation read on the target list (protocol §
    Idempotency); adopt any orphans into the sidecar first.
 8. **Create.** One bulk create for all epic parents (description = theme + goals
-   excerpt + `interrogate-key` footer). Write sidecar. One bulk create per epic for
-   its items (parent = epic taskId, status from `checked` via statusMap, key footer).
-   Write sidecar after each batch. Ledger after every call.
+   excerpt + `interrogate-key` footer; key ALSO set in the `interrogate-key` custom
+   field via `interrogateKeyFieldId` — protocol § Idempotency). Write sidecar. One
+   bulk create per epic for its items (parent = epic taskId, status from `checked`
+   via statusMap, key in field + footer). Write sidecar after each batch. Ledger
+   after every call.
 9. **Dependencies.** Only where a blocker resolves to an already-mapped key in this
    sidecar — `Add dependency`. Anything else was already folded into description text
    at creation time; spend nothing extra.

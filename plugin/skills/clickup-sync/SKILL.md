@@ -12,7 +12,8 @@ sidecar. Output dir defaults to the current working directory.
 
 ## Steps
 
-1. **Gate.** `.clickup-map.json` missing or `enabled: false` → report disabled, stop.
+1. **Gate.** Load `.clickup-map.json` from `<output-dir>/.captain-sdlc/` (legacy
+   fallback: the output-dir root). Missing or `enabled: false` → report disabled, stop.
    RC named but not mapped → that's a push job; run the clickup-push flow and say so.
 2. **Drain pendingOps first.** Oldest first, budget-gated per protocol. Re-export the
    affected RC before executing each op (ops store keys, not text). Remove an op only

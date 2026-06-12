@@ -34,7 +34,10 @@ a created List. The ClickUp MCP server cannot create sprints — only plain List
 
 ## Sidecar files
 
-Both live in the consuming project's output directory (next to `roadmap.md`).
+Both live in `.captain-sdlc/` under the consuming project's output directory — the
+Captain SDLC state dir, alongside `flay-state.json`. Legacy projects may still have
+them at the output-dir root: read from the root as a fallback, and migrate by moving
+the files into `.captain-sdlc/` on the next write. Never maintain both copies.
 
 ### `.clickup-map.json` — committed to git
 
@@ -49,6 +52,7 @@ Both live in the consuming project's output directory (next to `roadmap.md`).
       "listId": "901807xxxxx",
       "listName": "Sprint 14 (6/8 - 6/21)",
       "listKind": "sprint",
+      "interrogateKeyFieldId": "ebbbb7a4-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
       "statusMap": { "open": "to do", "done": "complete", "closed": "complete" },
       "epics": {
         "MRC1_LAUNCH#auth-hardening": { "taskId": "86cxxxxx", "heading": "Auth hardening" }
@@ -77,6 +81,9 @@ Both live in the consuming project's output directory (next to `roadmap.md`).
   sidecar `version` bump, and consumers that find them absent warn-and-skip
   intermediate mirroring rather than inventing a status. Configure via
   `/clickup-setup`.
+- `interrogateKeyFieldId` caches the list's `interrogate-key` custom-field id
+  (additive optional key, no `version` bump — discovered once per list via
+  `Get Custom Fields`; see Idempotency for the dual-write rule).
 - `enabled: false` short-circuits every skill: report "ClickUp sync is disabled for
   this project (.clickup-map.json enabled=false)" and stop. No ClickUp calls, no
   questions.
@@ -182,7 +189,18 @@ One `bulk-create` per epic batch; one `bulk-status-update` per target status gro
 A bulk create can succeed and the session die before the sidecar write. Two mandatory
 mechanisms:
 
-1. **Machine-readable footer.** Every created task's description ends with exactly:
+1. **Machine-readable key, written twice on create (both ride the same call — zero
+   extra spend).**
+
+   **Primary: the `interrogate-key` custom field** (short_text), set via the create
+   call's `custom_fields`. Discover the field id once per list (`Get Custom Fields`,
+   1 call — counts against the budget estimate) and cache it in the sidecar as the
+   RC's `interrogateKeyFieldId` (additive optional key, no `version` bump). If the
+   list has no such field, warn the user to add it (the MCP server cannot create
+   field definitions) and fall back to footer-only.
+
+   **Secondary: the description footer.** Every created task's description still ends
+   with exactly:
 
    ```
    ---
@@ -190,13 +208,20 @@ mechanisms:
    ```
 
    Own line, after a `---` separator, nothing after it. Never freelance this format.
+   The footer is kept because it is free at create time and readable by tools that
+   omit custom fields — but descriptions are human-editable prose; when field and
+   footer disagree, **the custom field wins**.
 
 2. **Before-create reconciliation.** Before ANY create batch into a list, fetch that
    list's tasks using the cheapest available list/search tool the ClickUp server
-   exposes for the target List (1 call — counts against the budget estimate). Scan
-   descriptions for `interrogate-key:` footers matching keys in the planned create
-   set. Matches are orphans from an interrupted run: adopt them into the sidecar
-   (record their taskId), remove them from the create set, then proceed.
+   exposes for the target List (1 call — counts against the budget estimate).
+   Caveat (verified live 2026-06-11): the current server's bulk list read returns
+   neither descriptions nor custom-field values — so use the list read to spot
+   suspect tasks (same name as a planned create, or any task in a list the sidecar
+   says is empty), then `Get Task` each suspect (1 call each, budgeted) and read its
+   `interrogate-key` field (footer as fallback). Matches are orphans from an
+   interrupted run: adopt them into the sidecar (record their taskId), remove them
+   from the create set, then proceed.
 
 Write the sidecar after each completed batch — never once at the end of the run.
 
@@ -204,6 +229,9 @@ Write the sidecar after each completed batch — never once at the end of the ru
 
 - Keys are stable under whitespace and reordering changes, but **rewording an item
   produces a new key** (close-and-create on the ClickUp side unless the user confirms
-  a rename remap during sync).
+  a rename remap during sync). A confirmed remap updates the sidecar key AND rewrites
+  the task's `interrogate-key` custom field (1 call — the field is the primary
+  identity, a stale field corrupts future reconciliation); the description footer is
+  left stale — never spend a call just to rewrite a footer.
 - Reordering duplicate-text items under one heading swaps their keys (inherent to the
   occurrence counter; rare and harmless — same text either way).
