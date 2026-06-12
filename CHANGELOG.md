@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.3.0] - 2026-06-12
+
+### Added
+
+- **Forced call ledger (enforcement).** A plugin `PreToolUse` hook
+  (`plugin/hooks/hooks.json` → `lib/clickup-ledger-hook.mjs`) runs before every ClickUp
+  MCP call: it prunes the rolling 25h window, appends the ledger entry, and **denies**
+  the call when `calls.length >= budget - reserve`. Ledgering and the budget ceiling no
+  longer depend on the model remembering — enabling the plugin enables enforcement, no
+  per-project `settings.json` wiring. Fails open on its own errors so a bug never bricks
+  the mirror; covered by `clickup-ledger-hook.test.mjs`. Decision recorded in ADR 0001.
+
 ## [0.2.2] - 2026-06-12
 
 ### Added

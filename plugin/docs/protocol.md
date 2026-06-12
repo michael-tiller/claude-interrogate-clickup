@@ -175,6 +175,14 @@ artifact.
 The ClickUp MCP server allows ~300 calls per **rolling 24 hours** on paid plans without
 the AI add-on. This is a hard constraint, not advisory.
 
+**Enforced, not just disciplined.** A plugin `PreToolUse` hook
+(`plugin/hooks/hooks.json` → `lib/clickup-ledger-hook.mjs`) runs before every ClickUp
+call: it prunes the 25h window, appends the ledger entry, and **denies** the call when
+`calls.length >= budget - reserve`. So the steps below are how a skill stays *within*
+the budget gracefully (estimate up front, queue overflow) — the hook is the backstop
+that makes "every call is ledgered" and the ceiling true even if a run forgets. See
+ADR 0001. The hook fails open on its own errors; never rely on that — keep estimating.
+
 Before ANY sequence of ClickUp calls:
 
 1. Read the ledger, prune entries older than 25h, compute `used = calls.length`.

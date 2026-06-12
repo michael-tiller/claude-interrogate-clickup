@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "claude-interrogate-clickup",
-      "version": "0.2.2",
+      "version": "0.3.0",
       "source": "./plugin",
       "description": "One-way mirror of claude-interrogate taskout RC checklists into ClickUp lists/sprints via ClickUp's official MCP server."
     }
