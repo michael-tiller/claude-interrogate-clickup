@@ -125,6 +125,19 @@ Both live in the consuming project's output directory (next to `roadmap.md`).
 - Missing ledger: create it with defaults on first ClickUp call. (Multi-machine
   caveat: a fresh ledger can overspend; the reserve plus 429 handling is the backstop.)
 
+## Flay awareness (advisory)
+
+`.captain-sdlc/flay-state.json` (written by interrogate's flay harness, ≥ 0.1.9;
+schema_version 1, single object) names the task currently being executed. Blades
+read it ADVISORILY — never act destructively on it, never treat stale state
+(phase `done`, old `updatedAt`) as live:
+
+- **clickup-sync**: when the active task's RC is mapped AND its `statusMap` has the
+  optional `inProgress` key, the sync may queue ONE `bulk-status-update` op moving
+  that task's mirrored ClickUp task to in-progress. Normal budget rules apply. If
+  `inProgress` is absent, skip silently — never invent a status.
+- **clickup-status**: report the active task (key, phase, age) alongside drift.
+
 ## Budget discipline
 
 The ClickUp MCP server allows ~300 calls per **rolling 24 hours** on paid plans without

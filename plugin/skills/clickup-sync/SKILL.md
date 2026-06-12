@@ -30,7 +30,11 @@ sidecar. Output dir defaults to the current working directory.
    genuinely replaced (close + create)?" before spending any calls. A remap updates
    the sidecar key and the task's footer is left stale — note it for the next created
    task description, never spend a call just to rewrite a footer.
-5. **Bookkeeping.** Update `checked`, `lastPushedAt`, `lastSyncAt` per protocol; write
+5. **Flay awareness.** If `.captain-sdlc/flay-state.json` exists and is live (not
+   phase `done`), and the active task's RC is mapped with `statusMap.inProgress`
+   set: queue one `bulk-status-update` op moving its mirrored task to in-progress
+   (protocol § Flay awareness). Absent statusMap key → skip silently.
+6. **Bookkeeping.** Update `checked`, `lastPushedAt`, `lastSyncAt` per protocol; write
    sidecar after each batch; ledger after every call.
-6. **Report.** Per-RC drift summary (created / status-flipped / retired / remapped),
-   pendingOps drained and remaining, calls spent, budget remaining.
+7. **Report.** Per-RC drift summary (created / status-flipped / retired / remapped),
+   pendingOps drained and remaining, calls spent, budget remaining, active flay if any.

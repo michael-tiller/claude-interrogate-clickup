@@ -22,7 +22,10 @@ only `design_taskout_export` (core calls are free — they never touch ClickUp).
    caveat from the protocol).
 3. **Pending ops.** Count, ages, reasons. Flag anything older than 24h.
 4. **Per-RC coverage.** For each RC in `rcs`: active/retired item counts, `lastSyncAt`.
-5. **Local drift.** Re-export each mapped RC via `design_taskout_export` and diff
+5. **Active flay.** If `.captain-sdlc/flay-state.json` exists, report the active
+   task: key, phase, age, and whether its RC's statusMap can mirror in-progress.
+   Stale state (phase `done`, very old `updatedAt`) → flag it as likely abandoned.
+6. **Local drift.** Re-export each mapped RC via `design_taskout_export` and diff
    against the sidecar: new keys, checked-state flips, removed keys. Summarize what a
    sync run would do and roughly how many calls it would cost (including
    reconciliation reads).
