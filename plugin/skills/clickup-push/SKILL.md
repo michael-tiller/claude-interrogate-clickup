@@ -40,8 +40,11 @@ directory (where `roadmap.md` and `.clickup-map.json` live).
 7. **Reconcile.** Before-create reconciliation read on the target list (protocol §
    Idempotency); adopt any orphans into the sidecar first.
 8. **Create.** One bulk create for all epic parents (description = theme + goals
-   excerpt + `interrogate-key` footer; key ALSO set in the `interrogate-key` custom
-   field via `interrogateKeyFieldId` — protocol § Idempotency). Write sidecar. One
+   excerpt + the RC **Definition of Done** as reference acceptance/verification steps
+   + `interrogate-key` footer; key ALSO set in the `interrogate-key` custom field via
+   `interrogateKeyFieldId` — protocol § Idempotency). The DoD is reference prose in the
+   description so the acceptance bar is visible from creation — never its own task
+   (principle 3). Write sidecar. One
    bulk create per epic for its items (parent = epic taskId, status from `checked`
    via statusMap, key in field + footer). Write sidecar after each batch. Ledger
    after every call.

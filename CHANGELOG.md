@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.2.2] - 2026-06-12
+
+### Added
+
+- **Verification comments.** When `clickup-sync` flips a key to its `qa` or complete status, it posts the `.captain-sdlc/verifications/<key>.md` artifact (written by claude-release-clickup's `/task-footers`) as a ClickUp task comment, then deletes it; over budget or on 429 it queues a `post-comment` op. New `post-comment` op in the durable-queue vocabulary; `Create Task Comment` added to the bulk-preference table (intentionally single-task). Blocked transitions are a documented forward-extension (no footer verb mints one yet).
+- **DoD at creation.** `clickup-push` now seeds each epic's description with the RC Definition of Done as reference acceptance/verification steps (description prose only — never pushed as tasks).
+
+### Changed
+
+- **Ledger rule tightened.** Budget discipline now states explicitly that EVERY ClickUp interaction is ledgered — reads (`Get Task`, list reads, `Get Custom Fields`, `Get Workspace Hierarchy`, searches), writes, and `post-comment` calls — not just writes.
+
 ## [0.2.1] - 2026-06-11
 
 ### Added
