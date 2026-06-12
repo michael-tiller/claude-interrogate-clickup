@@ -70,6 +70,13 @@ Both live in the consuming project's output directory (next to `roadmap.md`).
 }
 ```
 
+- `statusMap` core keys are `open`, `done`, `closed`. Two OPTIONAL keys —
+  `inProgress` and `qa` — enable intermediate-state mirroring from the Seam 7
+  release pass (claude-release-clickup forwards `Implements:`/`Needs-QA:` footer
+  transitions as `bulk-status-update` pendingOps). Optional keys are additive: no
+  sidecar `version` bump, and consumers that find them absent warn-and-skip
+  intermediate mirroring rather than inventing a status. Configure via
+  `/clickup-setup`.
 - `enabled: false` short-circuits every skill: report "ClickUp sync is disabled for
   this project (.clickup-map.json enabled=false)" and stop. No ClickUp calls, no
   questions.

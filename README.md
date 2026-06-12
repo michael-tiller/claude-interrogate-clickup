@@ -21,10 +21,13 @@ Each consuming project maintains a `.clickup-map.json` sidecar that records the 
 - `.clickup-ledger.json` (gitignored): rolling 24-hour call budget tracker (default 300 calls, 30-call reserve on paid plans without AI add-on)
 - `pendingOps[]` in the sidecar: durable queue of deferred work when budget is exhausted
 
+The optional `statusMap` keys `inProgress` and `qa` support intermediate-state mirroring from the Seam 7 release pass (claude-release-clickup).
+
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
+| `/clickup-setup` | Interactive settings + CLAUDE.md workflow block |
 | `/clickup-push <rc-id> [output-dir]` | Initial push of an RC into ClickUp; creates Folder, List, epics, and tasks |
 | `/clickup-sync [rc-id] [output-dir]` | Re-sync RC checkbox state into mapped tasks and drain pending-ops queue |
 | `/clickup-status [--verify]` | Health report: budget usage, pending ops, per-RC mapping, local drift (zero ClickUp calls by default) |

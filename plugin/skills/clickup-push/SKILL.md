@@ -30,7 +30,10 @@ directory (where `roadmap.md` and `.clickup-map.json` live).
    create a List named after the RC (e.g. `MRC1 — LAUNCH`) inside the project Folder?
    Record `listId`, `listName`, `listKind`.
 5. **Status map.** From the chosen list's statuses, propose `{open, done, closed}`,
-   confirm once with the user, store as `statusMap`.
+   plus the optional `{inProgress, qa}` keys when the list has plausible candidate
+   statuses (these enable intermediate-state mirroring from the Seam 7 release
+   pass; skipping them is fine — `/clickup-setup` can add them later). Confirm once
+   with the user, store as `statusMap`.
 6. **Budget gate.** Per protocol: estimate ALL calls (reconciliation read + creates +
    dependencies), check the ledger, queue-and-stop loudly if it doesn't fit.
 7. **Reconcile.** Before-create reconciliation read on the target list (protocol §

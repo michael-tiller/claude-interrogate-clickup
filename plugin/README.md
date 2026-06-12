@@ -6,6 +6,7 @@ Requires claude-interrogate >= 0.1.8.
 
 ## Commands
 
+- `/clickup-setup` — interactive settings + CLAUDE.md workflow block
 - `/clickup-push <rc-id>` — initial RC mirror to ClickUp
 - `/clickup-sync [rc-id]` — re-sync checkbox state and drain pending ops
 - `/clickup-status [--verify]` — call-budget report, zero ClickUp calls by default
