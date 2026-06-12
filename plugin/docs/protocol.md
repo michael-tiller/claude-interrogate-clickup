@@ -109,7 +109,8 @@ the files into `.captain-sdlc/` on the next write. Never maintain both copies.
 ```
 
 - Op vocabulary: `create-list`, `bulk-create-epics`, `bulk-create-items`,
-  `bulk-status-update`, `add-dependency`, `post-comment`, `update-spec`.
+  `bulk-status-update`, `add-dependency`, `update-spec` (legacy `post-comment` ops
+  from ≤ v0.4.0 queues drain as `update-spec` body writes).
 - `reason` is `"budget-exhausted"` or `"429"`.
 - Ops store **keys, never text** — the drain step re-exports the RC so text is
   current-canonical at execution time. If a queued key no longer exists in the fresh
@@ -148,28 +149,39 @@ read it ADVISORILY — never act destructively on it, never treat stale state
   `inProgress` is absent, skip silently — never invent a status.
 - **clickup-status**: report the active task (key, phase, age) alongside drift.
 
-## Verification comments
+## Verification in the task body
 
 claude-release-clickup's task-footers writes a verification block to
 `.captain-sdlc/verifications/<key>.md` whenever a commit carries a `Needs-QA:` or
 `Completes:` footer — what was tried and its result, plus the QA steps to confirm it.
 When clickup-sync flips that key to its `qa` or closed/`done` status — draining a qa
-`bulk-status-update` op, or detecting a `Completes` checkbox flip — it posts the
-artifact's contents as a ClickUp **task comment** on the mapped task, then deletes the
-artifact.
+`bulk-status-update` op, or detecting a `Completes` checkbox flip — it writes the
+artifact's contents into the mapped task's **description** (the body), then deletes
+the artifact. DOD and verification specs must not live in a comment that scrolls away
+under later discussion — the body is the durable, always-visible surface. *(Supersedes
+the v0.1.3–v0.4.0 "verification comments" design; legacy queued `post-comment`
+pendingOps drain as body writes.)*
 
-- One comment = one task call (`Create Task Comment` — intentionally not a bulk tool;
-  comments are per-task). Estimate it in the op-plan budget and ledger it like any call.
-- Over budget or on a 429: queue a `post-comment` op (`rcId`, item `key`, `taskId`) to
-  `pendingOps`, stop loudly, never partial-post.
-- The artifact is the idempotency token: delete it only after the comment call
-  succeeds, so a re-run with no artifact posts nothing. A duplicate verification comment
-  is low-harm prose (not a duplicate task) — don't spend reconciliation reads guarding it.
-- No artifact for a flipping key → nothing to post; never synthesize one. Comments are
-  the only thing the mirror writes to ClickUp beyond tasks/status, and it still never
-  reads ClickUp back into markdown — canonical stays canonical.
-- **Blocked (forward extension).** The same plumbing posts a "what we tried / why
-  stalled" comment on a flip to a blocked status. No footer verb mints a blocked
+- **With `taskSpecs: true`** the qa/complete spec-block write (§ Per-task spec blocks)
+  IS the verification handoff — the artifact feeds **Automated coverage** + **Human QA
+  steps**, zero extra calls beyond the spec write that flip already triggers.
+- **With `taskSpecs` off/absent** the flip still writes the artifact into the
+  description as a standalone `**Verification** _(spec v1)_` section (same placement
+  rule: between item text and the `interrogate-key:` footer). Verification durability
+  is not opt-in; only the in-progress DOD drafting is.
+- One body write = 1 `Get Task` + 1 `Update Task` (descriptions are absent from bulk
+  reads). Estimate both in the op-plan budget and ledger them like any call.
+- Over budget or on a 429: queue an `update-spec` op (`rcId`, item `key`, `taskId`,
+  trigger) to `pendingOps`, stop loudly, never partial-write.
+- The artifact is the idempotency token: delete it only after the `Update Task`
+  succeeds, so a re-run with no artifact writes nothing.
+- The update MUST preserve the description's other content (item text, existing spec
+  block content carried forward per the renovation rule, the key footer exactly) —
+  clobbering loses human-reviewed prose.
+- No artifact for a flipping key → nothing to write; never synthesize one. The mirror
+  still never reads ClickUp back into markdown — canonical stays canonical.
+- **Blocked (forward extension).** The same plumbing writes a "what we tried / why
+  stalled" note on a flip to a blocked status. No footer verb mints a blocked
   transition today (Seam 7 has three verbs); wiring that trigger is an open decision —
   until it lands, this fires only on qa/complete.
 
@@ -258,7 +270,7 @@ Before ANY sequence of ClickUp calls:
    write** — before making the next call. No interaction is exempt: reconciliation
    `Get Task` / list reads, `Get Custom Fields` discovery, `Get Workspace Hierarchy`,
    searches, every bulk create/update, dependency links, and verification
-   `post-comment` calls all ledger. The `calls[]` example below shows a write, but reads
+   body-write (`Get Task` + `Update Task`) calls all ledger. The `calls[]` example below shows a write, but reads
    count identically — an unledgered call corrupts the rolling-24h count for every
    machine sharing the budget.
 
@@ -280,7 +292,7 @@ session start, list the ClickUp server's actual tools and reconcile against this
 | Dependency links           | Add dependency                   |
 | Search                     | Search Workspace                 |
 | Read one task              | Get Task                         |
-| One task comment           | Create Task Comment              |
+| One body/spec write        | Get Task + Update Task (2 calls) |
 
 One `bulk-create` per epic batch; one `bulk-status-update` per target status group.
 
