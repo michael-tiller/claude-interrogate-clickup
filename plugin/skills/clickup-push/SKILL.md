@@ -1,0 +1,46 @@
+---
+name: clickup-push
+description: Initial push of a taskout RC into ClickUp (Folder → List → epics → tasks). Use when the user asks to push an RC to ClickUp, OR proactively immediately after a taskout interview completes in a project whose .clickup-map.json has enabled true and the RC is not yet mapped. Already-mapped RCs belong to clickup-sync instead.
+---
+
+# ClickUp Push (initial RC mirror)
+
+FIRST: Read `${CLAUDE_PLUGIN_ROOT}/docs/protocol.md`. It is the binding contract —
+sidecar schemas, budget discipline, bulk preference, idempotency, no-delete rule.
+
+Arguments: `<rc-id> [output-dir]`. Output dir defaults to the current working
+directory (where `roadmap.md` and `.clickup-map.json` live).
+
+## Steps
+
+1. **Gate.** Load `.clickup-map.json` from the output dir.
+   - `enabled: false` → report disabled, stop.
+   - Missing → ask the user: "Initialize ClickUp sync for this project?" Decline →
+     write `{ "version": 1, "enabled": false }`, stop.
+   - RC already has mappings under `rcs` → this is a sync job; run the clickup-sync
+     flow instead and say so.
+2. **Export.** Call `design_taskout_export` on the claude-interrogate MCP server with
+   `rc_id` and `output_dir`. If the tool is missing, tell the user to install/update
+   claude-interrogate to >= 0.1.8 and stop. Never parse the RC markdown yourself.
+3. **Project container.** Use sidecar `project.folderId` if set. Otherwise: one
+   `Get Workspace Hierarchy` call, present the Spaces/Folders, let the user pick an
+   existing Folder or create one for this project; record
+   `workspace.teamId` + `project` in the sidecar.
+4. **RC target.** Ask: existing sprint List (pick from hierarchy, no extra call) or
+   create a List named after the RC (e.g. `MRC1 — LAUNCH`) inside the project Folder?
+   Record `listId`, `listName`, `listKind`.
+5. **Status map.** From the chosen list's statuses, propose `{open, done, closed}`,
+   confirm once with the user, store as `statusMap`.
+6. **Budget gate.** Per protocol: estimate ALL calls (reconciliation read + creates +
+   dependencies), check the ledger, queue-and-stop loudly if it doesn't fit.
+7. **Reconcile.** Before-create reconciliation read on the target list (protocol §
+   Idempotency); adopt any orphans into the sidecar first.
+8. **Create.** One bulk create for all epic parents (description = theme + goals
+   excerpt + `interrogate-key` footer). Write sidecar. One bulk create per epic for
+   its items (parent = epic taskId, status from `checked` via statusMap, key footer).
+   Write sidecar after each batch. Ledger after every call.
+9. **Dependencies.** Only where a blocker resolves to an already-mapped key in this
+   sidecar — `Add dependency`. Anything else was already folded into description text
+   at creation time; spend nothing extra.
+10. **Report.** Created counts (epics/items), calls spent, budget remaining, anything
+    queued to pendingOps.
