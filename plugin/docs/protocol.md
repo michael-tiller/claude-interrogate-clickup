@@ -94,6 +94,10 @@ the files into `.captain-sdlc/` on the next write. Never maintain both copies.
   `{ "version": 1, "enabled": false }` so the project is never asked again.
   `clickup-sync` and `clickup-status` treat a missing sidecar as disabled.
 - `state` is `"active"` or `"retired"`. Retired entries keep their taskId forever.
+- An epic entry MAY carry an additive optional `status` (the derived rollup cache —
+  `complete`/`qa`/`in-progress`/`to-do`) so the release pass skips re-setting an epic
+  whose computed status is unchanged; absent → treat as changed. No `version` bump.
+  Epic status is DERIVED from item state (release-pass `epics[]` rollup), never authored.
 
 ### `pendingOps[]` — the durable queue
 
