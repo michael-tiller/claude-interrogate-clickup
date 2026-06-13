@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.0] - 2026-06-13
+
+### Added
+
+- **Task planning-field enrichment.** `clickup-push` and `clickup-sync` now mirror
+  per-item scoping estimates onto each ClickUp task: **Priority** (native), **Time
+  Estimate** (native `time_estimate`), **Token Budget** (custom dropdown), and
+  **Discipline** (custom dropdown). Values are proposed by the model and confirmed by
+  the user once (planning-poker), stored in the `.clickup-map.json` sidecar under
+  `items[key].fields`, and are **sticky** — sync never re-prompts; delete an item's
+  `fields` block to re-estimate. Token Budget + Discipline ids and their option maps are
+  discovered in the SAME `Get Custom Fields` call that finds `interrogate-key` and cached
+  under the RC's new `fieldIds` key — so on a fresh push every field rides the
+  task-create call at **zero extra ClickUp calls**. A field absent from the list is
+  warn-and-skipped. Both `fieldIds` and `items[key].fields` are additive optional sidecar
+  keys (no `version` bump). Estimates are mirror metadata — they never touch the
+  canonical roadmap markdown.
+- **Start-date on flay.** When `clickup-sync` moves a flayed task to in-progress it now
+  also sets the task's native `start_date` to that day (riding the same status update)
+  and records `items[key].fields.startedAt`, set-once so re-flaying keeps the original
+  start.
+- `/clickup-setup`'s per-RC view surfaces discovered `fieldIds`; `/clickup-status`
+  reports planning-field coverage (estimates N/M) at zero ClickUp cost.
+
+### Note
+
+- **Sprint Points and Tags are intentionally not mirrored.** ClickUp's native Sprint
+  Points has no write path in the official MCP server (only `custom_fields` / `priority`
+  / `time_estimate` / `start_date` are writable); Tags were deferred.
+
 ## [0.4.0] - 2026-06-12
 
 ### Added

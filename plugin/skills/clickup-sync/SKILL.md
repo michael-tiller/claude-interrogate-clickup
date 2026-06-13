@@ -26,6 +26,16 @@ sidecar. Output dir defaults to the current working directory.
      epic first). Reconciliation read before any create batch (protocol § Idempotency).
    - **`checked` changed** → group all flips by target status; one bulk-status-update
      per status group.
+   - **Planning fields** (protocol § `items[key].fields`). New keys get their estimates
+     at create (clickup-push step 8 — proposed + set inline). An active item with NO
+     `fields` block (e.g. a pre-enrichment backfill) → propose its estimate (model
+     guesses Priority / Time / Token Budget / Discipline from the item text, user
+     confirms), then set `priority` + `time_estimate` + Token Budget/Discipline
+     `custom_fields` (option UUIDs via `fieldIds`) — folded into this run's `update_task`
+     when a status flip already touches the task, else +1 `update_task` (estimated up
+     front, budget-gated). Items that already have a `fields` block are STICKY — never
+     re-proposed or re-pushed. To re-estimate one, delete its `fields` block in the
+     sidecar; the next sync re-proposes it.
    - **Key gone but `state: "active"`** → close in place (one bulk-status-update with
      the `closed` status), flip mapping to `"retired"`. NEVER delete.
    - **Verification → task body.** Any key moved to its `qa` / complete / `blocked`
@@ -54,8 +64,11 @@ sidecar. Output dir defaults to the current working directory.
    task description, never spend a call just to rewrite a footer.
 5. **Flay awareness.** If `.captain-sdlc/flay-state.json` exists and is live (not
    phase `done`), and the active task's RC is mapped with `statusMap.inProgress`
-   set: queue one `bulk-status-update` op moving its mirrored task to in-progress
-   (protocol § Flay awareness). Absent statusMap key → skip silently.
+   set: queue one `bulk-status-update` op moving its mirrored task to in-progress AND
+   setting its `start_date` to today (same update, zero extra calls); record
+   `items[key].fields.startedAt` — set-once, never overwrite an existing `startedAt`
+   so re-flaying keeps the original start (protocol § Flay awareness). Absent statusMap
+   key → skip silently.
 6. **Bookkeeping.** Update `checked`, `lastPushedAt`, `lastSyncAt` per protocol; write
    sidecar after each batch; ledger after every call.
 7. **Report.** Per-RC drift summary (created / status-flipped / retired / remapped),

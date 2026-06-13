@@ -53,6 +53,12 @@ the files into `.captain-sdlc/` on the next write. Never maintain both copies.
       "listName": "Sprint 14 (6/8 - 6/21)",
       "listKind": "sprint",
       "interrogateKeyFieldId": "ebbbb7a4-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+      "fieldIds": {
+        "tokenBudget": "cfc439d7-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "tokenBudgetOptions": { "Vibes ($0)": "9d9ca2b0-xxxx", "Dinner ($30)": "45237fb9-xxxx" },
+        "discipline": "7de468ab-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "disciplineOptions": { "Eng": "xxxx", "Art": "xxxx" }
+      },
       "statusMap": { "open": "to do", "done": "complete", "closed": "complete" },
       "epics": {
         "MRC1_LAUNCH#auth-hardening": { "taskId": "86cxxxxx", "heading": "Auth hardening" }
@@ -64,7 +70,14 @@ the files into `.captain-sdlc/` on the next write. Never maintain both copies.
           "text": "Rotate signing keys on deploy",
           "checked": false,
           "state": "active",
-          "lastPushedAt": "2026-06-11T18:00:00Z"
+          "lastPushedAt": "2026-06-11T18:00:00Z",
+          "fields": {
+            "priority": "high",
+            "timeEstimateMinutes": 120,
+            "tokenBudget": "Dinner ($30)",
+            "discipline": "Eng",
+            "startedAt": "2026-06-13"
+          }
         }
       },
       "lastSyncAt": "2026-06-11T18:05:00Z"
@@ -84,6 +97,25 @@ the files into `.captain-sdlc/` on the next write. Never maintain both copies.
 - `interrogateKeyFieldId` caches the list's `interrogate-key` custom-field id
   (additive optional key, no `version` bump — discovered once per list via
   `Get Custom Fields`; see Idempotency for the dual-write rule).
+- `fieldIds` caches the list's planning custom-field ids + dropdown option maps
+  (Token Budget, Discipline) — discovered in the SAME `Get Custom Fields` call that
+  finds `interrogateKeyFieldId` (no extra call). Additive optional key, no `version`
+  bump. A field absent from the list → omit it and warn-and-skip that enrichment
+  (mirrors the `interrogate-key` fallback). Resolve a dropdown's option UUID from its
+  `…Options` (cached label→UUID) map at write time — NEVER match by label string
+  (option labels may carry trailing spaces).
+- `items[key].fields` are per-item **planning estimates** mirrored onto the ClickUp
+  task: `priority` (urgent/high/normal/low → native `priority`), `timeEstimateMinutes`
+  (→ native `time_estimate`), `tokenBudget` + `discipline` (dropdown labels → option
+  UUIDs via `fieldIds`), and `startedAt` (→ native `start_date`, set on flay; see Flay
+  awareness). Stored as human-readable labels (git-readable, like `text`/`checked`).
+  Additive optional key, no `version` bump. **Estimates are authored once** — proposed
+  by the model, confirmed by the user at push (or at first sync for an already-mapped
+  RC) — then **sticky**: sync mirrors a value to ClickUp only when the STORED value
+  changes, never re-prompting. An active item with no `fields` block = "needs initial
+  estimate". Estimates are mirror metadata: they live HERE, never in the canonical
+  roadmap markdown (Principle 1). Sprint Points and Tags are intentionally NOT
+  mirrored (no MCP write path / out of scope).
 - `taskSpecs: true` (OPTIONAL, additive, no `version` bump) enables per-task spec
   blocks (§ Per-task spec blocks). Absent or `false` → skills do no spec work and
   spend no spec calls. Configure via `/clickup-setup`.
@@ -149,8 +181,11 @@ read it ADVISORILY — never act destructively on it, never treat stale state
 
 - **clickup-sync**: when the active task's RC is mapped AND its `statusMap` has the
   optional `inProgress` key, the sync may queue ONE `bulk-status-update` op moving
-  that task's mirrored ClickUp task to in-progress. Normal budget rules apply. If
-  `inProgress` is absent, skip silently — never invent a status.
+  that task's mirrored ClickUp task to in-progress. **On that same update, set the
+  task's `start_date` to today and record `items[key].fields.startedAt`** — set-once:
+  never overwrite an existing `startedAt`, so re-flaying keeps the original start. The
+  start-date write rides the status update (zero extra calls). Normal budget rules
+  apply. If `inProgress` is absent, skip silently — never invent a status.
 - **clickup-status**: report the active task (key, phase, age) alongside drift.
 
 ## Verification in the task body

@@ -26,7 +26,9 @@ lookup (changing the project Folder or an RC's target list requires one
       using this OAuth account.
    3. **Project container** — show Space/Folder; change via one hierarchy call.
    4. **Per-RC targets** — list each RC's List/sprint, statusMap, active/retired
-      counts, lastSyncAt. Allow retargeting an RC to a different List (hierarchy
+      counts, lastSyncAt, and discovered `fieldIds` (which enrichment fields —
+      Token Budget / Discipline — resolved on the list; flag an absent one so the user
+      can add it in ClickUp). Allow retargeting an RC to a different List (hierarchy
       call; existing mappings keep their taskIds — warn that already-created tasks
       do NOT move automatically; suggest closing the old list manually or accepting
       the split).

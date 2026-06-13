@@ -21,7 +21,9 @@ only `design_taskout_export` (core calls are free — they never touch ClickUp).
    Missing ledger → "no calls recorded on this machine" (note the multi-machine
    caveat from the protocol).
 3. **Pending ops.** Count, ages, reasons. Flag anything older than 24h.
-4. **Per-RC coverage.** For each RC in `rcs`: active/retired item counts, `lastSyncAt`.
+4. **Per-RC coverage.** For each RC in `rcs`: active/retired item counts, `lastSyncAt`,
+   and planning-field coverage — how many active items carry an `items[key].fields`
+   estimate (e.g. "estimates 22/30"); zero ClickUp calls (sidecar-only).
 5. **Active flay.** If `.captain-sdlc/flay-state.json` exists, report the active
    task: key, phase, age, and whether its RC's statusMap can mirror in-progress.
    Stale state (phase `done`, very old `updatedAt`) → flag it as likely abandoned.

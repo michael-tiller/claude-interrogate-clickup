@@ -39,19 +39,33 @@ directory (where `roadmap.md` and `.clickup-map.json` live).
    dependencies), check the ledger, queue-and-stop loudly if it doesn't fit.
 7. **Reconcile.** Before-create reconciliation read on the target list (protocol §
    Idempotency); adopt any orphans into the sidecar first.
-8. **Create.** One bulk create for all epic parents (description = theme + goals
+8. **Estimate planning fields.** Propose a compact per-item table — **Priority**
+   (urgent/high/normal/low), **Time Estimate**, **Token Budget** (the list's $-bucket
+   dropdown), **Discipline** (the list's dropdown) — guessing each value from the item
+   text; let the user confirm or override in one pass. These are sticky estimates
+   (protocol § `items[key].fields`) and ride the create calls below at zero extra cost.
+   Skip any field whose custom field is absent on the list (warn once). Sprint Points /
+   Tags are out of scope — never set them.
+9. **Create.** Discover the list's custom fields once (`Get Custom Fields`, 1 call —
+   already budgeted): cache `interrogateKeyFieldId` AND the planning `fieldIds`
+   (Token Budget + Discipline ids + their option maps) from the SAME response — no
+   extra spend. One bulk create for all epic parents (description = theme + goals
    excerpt + the RC **Definition of Done** as reference acceptance/verification steps
    + `interrogate-key` footer; key ALSO set in the `interrogate-key` custom field via
    `interrogateKeyFieldId` — protocol § Idempotency). The DoD is reference prose in the
    description so the acceptance bar is visible from creation — never its own task
    (principle 3). Write sidecar. One
    bulk create per epic for its items (parent = epic taskId, status from `checked`
-   via statusMap, key in field + footer). Per-task spec blocks are NOT seeded at
+   via statusMap, key in field + footer). **On each item create, set the confirmed
+   planning fields inline — `priority`, `time_estimate`, and `custom_fields` for Token
+   Budget + Discipline (dropdown OPTION UUIDs resolved via `fieldIds`, never labels) —
+   riding the same create call (zero extra calls); write them to `items[key].fields`.**
+   Per-task spec blocks are NOT seeded at
    creation — touch points own them (protocol § Per-task spec blocks), so a push
    spends nothing on specs. Write sidecar after each batch. Ledger
    after every call.
-9. **Dependencies.** Only where a blocker resolves to an already-mapped key in this
+10. **Dependencies.** Only where a blocker resolves to an already-mapped key in this
    sidecar — `Add dependency`. Anything else was already folded into description text
    at creation time; spend nothing extra.
-10. **Report.** Created counts (epics/items), calls spent, budget remaining, anything
+11. **Report.** Created counts (epics/items), calls spent, budget remaining, anything
     queued to pendingOps.
