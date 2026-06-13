@@ -29,6 +29,20 @@ only `design_taskout_export` (core calls are free — they never touch ClickUp).
    against the sidecar: new keys, checked-state flips, removed keys. Summarize what a
    sync run would do and roughly how many calls it would cost (including
    reconciliation reads).
+7. **Seam 7 footer drift (zero calls).** Completion can silently lag the checkboxes:
+   `Completes:`/`Needs-QA:`/`Implements:` footers are applied by claude-release-clickup's
+   release pass, which historically ran only at `/release` — so footers committed
+   between releases pile up unapplied (markdown checkbox stays `[ ]`, ClickUp stays
+   stale). Detect it locally: scan commits since the last release tag and compare to the
+   sidecar.
+   - `git -C <output-dir> log "$(git -C <output-dir> describe --tags --abbrev=0)..HEAD" --format=%B`
+     and pull trailer lines `^(Completes|Needs-QA|Implements): <key>` (last verb wins per key).
+   - **`Completes:` whose sidecar item is `checked:false` (or absent) → DRIFT**: completed
+     work not reflected in the checkbox. Tell the user to run the catch-up —
+     claude-release-clickup `release-pass.mjs --range <tag>..HEAD --exports <export> --apply`
+     (the `--range` mode applies footers without waiting for a `/release` manifest).
+   - `Needs-QA:`/`Implements:` map to intermediate states (qa/in-progress); the free
+     check can't confirm ClickUp's live status — list them and suggest `--verify`.
 
 ## `--verify` (budget-gated spot check)
 
