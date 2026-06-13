@@ -27,12 +27,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   start.
 - `/clickup-setup`'s per-RC view surfaces discovered `fieldIds`; `/clickup-status`
   reports planning-field coverage (estimates N/M) at zero ClickUp cost.
+- **Seam 7 footer-drift detector (zero-call).** `/clickup-status` scans commits since the
+  last release tag for `Completes:`/`Needs-QA:`/`Implements:` footers and flags any whose
+  sidecar checkbox state doesn't reflect them — completed work that silently lagged the
+  checkboxes between releases; points at claude-release-clickup's `release-pass --range`
+  catch-up. (Shipped unversioned after 0.5.0; released here.)
+- **Derived epic-status rollup cache.** Epic sidecar entries may carry an additive
+  optional `status` (rollup derived from item state, never authored) so the release pass
+  skips re-setting unchanged epics. (Shipped unversioned after 0.5.0; released here.)
 
 ### Note
 
 - **Sprint Points and Tags are intentionally not mirrored.** ClickUp's native Sprint
   Points has no write path in the official MCP server (only `custom_fields` / `priority`
   / `time_estimate` / `start_date` are writable); Tags were deferred.
+
+## [0.5.0] - 2026-06-12
+
+### Changed
+
+- **BREAKING: Verification lands in the task BODY, not a comment.** On a qa/complete flip,
+  `clickup-sync` writes the `.captain-sdlc/verifications/<key>.md` artifact into the
+  mapped task's DESCRIPTION (DOD/QA specs must stay visible, not scroll away under later
+  discussion): with `taskSpecs: true` it feeds the spec block's Automated coverage + Human
+  QA steps (zero extra calls — same Get+Update the flip already triggers); without it, a
+  standalone **Verification** _(spec v1)_ section above the key footer. Artifact deletion
+  (the idempotency token) now happens after the successful Update Task.
+
+### Removed
+
+- **BREAKING: Verification comments.** The mirror no longer posts verification comments;
+  `Create Task Comment` leaves the call-cost table. The `post-comment` op is retired in
+  favor of `update-spec`; legacy queued `post-comment` ops drain as body writes.
 
 ## [0.4.0] - 2026-06-12
 
