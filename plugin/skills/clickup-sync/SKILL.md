@@ -22,8 +22,14 @@ sidecar. Output dir defaults to the current working directory.
    (protocol § Verification in the task body).
 3. **Per RC: export and diff.** Call `design_taskout_export`; key-diff against sidecar
    `items`:
-   - **New keys** → bulk create under the mapped epic (new subsection → create its
-     epic first). Reconciliation read before any create batch (protocol § Idempotency).
+   - **New keys** → one `Create Task` per key under the mapped story, carrying FULL
+     detail in that single call (status, `interrogate-key` field + footer, description =
+     item text + the item's per-item DOD from the export when present, and the planning
+     fields inline — clickup-push step 9). No bulk endpoint exists; never
+     bare-create-then-enrich (protocol § Single-call create discipline). New subsection
+     → create its story first (`task_type: Story` when available). Reconciliation read
+     before any create batch (protocol §
+     Idempotency).
    - **`checked` changed** → group all flips by target status; one bulk-status-update
      per status group.
    - **Planning fields** (protocol § `items[key].fields`). New keys get their estimates
@@ -35,7 +41,9 @@ sidecar. Output dir defaults to the current working directory.
      when a status flip already touches the task, else +1 `update_task` (estimated up
      front, budget-gated). Items that already have a `fields` block are STICKY — never
      re-proposed or re-pushed. To re-estimate one, delete its `fields` block in the
-     sidecar; the next sync re-proposes it.
+     sidecar; the next sync re-proposes it. A planning custom field absent on the list →
+     omit it and suggest the user add it via the ClickUp web UI (protocol § `fieldIds` —
+     portability; never block).
    - **Key gone but `state: "active"`** → close in place (one bulk-status-update with
      the `closed` status), flip mapping to `"retired"`. NEVER delete.
    - **Verification → task body.** Any key moved to its `qa` / complete / `blocked`

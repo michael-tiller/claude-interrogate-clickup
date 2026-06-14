@@ -15,19 +15,28 @@ this document wins.
    `"state": "retired"`.
 3. **Definition of Done items are never pushed as tasks.** DoD is the ship gate, not
    work items.
-4. **Deterministic identity comes from core.** Item and epic keys are computed by the
+4. **Deterministic identity comes from core.** Item and story keys are computed by the
    `design_taskout_export` tool on the claude-interrogate MCP server (requires
    claude-interrogate >= 0.1.8). Never re-derive, guess, or hand-compute a key.
 
 ## Hierarchy mapping
 
-| Interrogate concept            | ClickUp container                                  |
-| ------------------------------ | -------------------------------------------------- |
-| Consuming project              | one **Folder** (recorded in sidecar `project`)     |
-| RC (`M8_QUESTS`, `MRC1_LAUNCH`) | one **List** in that Folder, or an existing sprint List by ID |
-| `### Targeted` subsection      | parent task ("epic") in the RC's List              |
-| Checkbox item                  | subtask under its epic, status from checked state  |
-| Blockers & Dependencies        | dependency link when the blocker maps to a known task key; otherwise folded into description text at creation time |
+**Agile mapping (standardized — each term means exactly its level of work):** **Epic** =
+the RC / milestone (the **List**); **Story** = a `### Targeted` subsection (a parent
+task); **Task** = a checkbox work item (a subtask under its Story). Set ClickUp
+`task_type` to match the level — `Story` on a story parent, `Task` on a task subtask
+(ClickUp's default type is already `Task`; the Epic is the List, not a typed task). Where
+the workspace lacks a custom type (commonly `Story`), omit it and **suggest the user add
+it via the ClickUp web UI** — the MCP server cannot create task-type definitions
+(portability; same rule as a missing custom field).
+
+| Interrogate concept                      | ClickUp container                                  |
+| ---------------------------------------- | -------------------------------------------------- |
+| Consuming project                        | one **Folder** (recorded in sidecar `project`)     |
+| RC / milestone — the **Epic**            | one **List** in that Folder, or an existing sprint List by ID |
+| `### Targeted` subsection — a **Story**  | parent task in the RC's List (`task_type: Story` when available) |
+| Checkbox item — a **Task**               | subtask under its Story (`task_type: Task`, the default), status from checked state |
+| Blockers & Dependencies                  | dependency link when the blocker maps to a known task key; otherwise folded into description text at creation time |
 
 Sprints in ClickUp are Lists; an RC may target an existing sprint List by ID instead of
 a created List. The ClickUp MCP server cannot create sprints — only plain Lists.
@@ -60,13 +69,13 @@ the files into `.captain-sdlc/` on the next write. Never maintain both copies.
         "disciplineOptions": { "Eng": "xxxx", "Art": "xxxx" }
       },
       "statusMap": { "open": "to do", "done": "complete", "closed": "complete" },
-      "epics": {
+      "stories": {
         "MRC1_LAUNCH#auth-hardening": { "taskId": "86cxxxxx", "heading": "Auth hardening" }
       },
       "items": {
         "MRC1_LAUNCH#auth-hardening#a1b2c3d4e5f6": {
           "taskId": "86cyyyyy",
-          "epicKey": "MRC1_LAUNCH#auth-hardening",
+          "storyKey": "MRC1_LAUNCH#auth-hardening",
           "text": "Rotate signing keys on deploy",
           "checked": false,
           "state": "active",
@@ -100,8 +109,12 @@ the files into `.captain-sdlc/` on the next write. Never maintain both copies.
 - `fieldIds` caches the list's planning custom-field ids + dropdown option maps
   (Token Budget, Discipline) — discovered in the SAME `Get Custom Fields` call that
   finds `interrogateKeyFieldId` (no extra call). Additive optional key, no `version`
-  bump. A field absent from the list → omit it and warn-and-skip that enrichment
-  (mirrors the `interrogate-key` fallback). Resolve a dropdown's option UUID from its
+  bump. A field absent from the list → omit that enrichment AND **suggest the user add
+  it via the ClickUp web UI**, naming the field and type (e.g. `Token Budget`
+  (dropdown), `Discipline` (dropdown)) — the MCP server cannot create field
+  definitions. Never block or fail on absence: the mirror must work for a user who does
+  not share the project owner's exact custom-field setup (portability). Resolve a
+  dropdown's option UUID from its
   `…Options` (cached label→UUID) map at write time — NEVER match by label string
   (option labels may carry trailing spaces).
 - `items[key].fields` are per-item **planning estimates** mirrored onto the ClickUp
@@ -126,10 +139,19 @@ the files into `.captain-sdlc/` on the next write. Never maintain both copies.
   `{ "version": 1, "enabled": false }` so the project is never asked again.
   `clickup-sync` and `clickup-status` treat a missing sidecar as disabled.
 - `state` is `"active"` or `"retired"`. Retired entries keep their taskId forever.
-- An epic entry MAY carry an additive optional `status` (the derived rollup cache —
-  `complete`/`qa`/`in-progress`/`to-do`) so the release pass skips re-setting an epic
+- **Legacy key migration (additive shim, no `version` bump).** Before the agile
+  standardization the story map was named `epics` and item entries used `epicKey`. Read
+  `rcs.<RC>.stories ?? rcs.<RC>.epics` and `items[k].storyKey ?? items[k].epicKey`; on the
+  NEXT sidecar write, emit the `stories` / `storyKey` names and drop the legacy ones. The
+  keys themselves (`<RC>#<slug>`, `<RC>#<slug>#<digest>`) are unchanged, so nothing is
+  re-created in ClickUp.
+- A story entry MAY carry an additive optional `status` (the derived rollup cache —
+  `complete`/`qa`/`in-progress`/`to-do`) so the release pass skips re-setting a story
   whose computed status is unchanged; absent → treat as changed. No `version` bump.
-  Epic status is DERIVED from item state (release-pass `epics[]` rollup), never authored.
+  Story status is DERIVED from task state (release-pass `stories[]` rollup), never authored.
+- A story entry MAY also carry a derived `scopeBudget` (the summed Token Budget of its
+  child tasks — a deterministic $ rollup) and the RC/Epic a top-level total. Derived by
+  math, never authored. (Rollup mechanics land with the budget-rollup work.)
 
 ### `pendingOps[]` — the durable queue
 
@@ -137,14 +159,14 @@ the files into `.captain-sdlc/` on the next write. Never maintain both copies.
 {
   "op": "bulk-create-items",
   "rcId": "MRC1_LAUNCH",
-  "epicKey": "MRC1_LAUNCH#auth-hardening",
+  "storyKey": "MRC1_LAUNCH#auth-hardening",
   "itemKeys": ["MRC1_LAUNCH#auth-hardening#deadbeef0123"],
   "queuedAt": "2026-06-11T18:06:00Z",
   "reason": "budget-exhausted"
 }
 ```
 
-- Op vocabulary: `create-list`, `bulk-create-epics`, `bulk-create-items`,
+- Op vocabulary: `create-list`, `bulk-create-stories`, `bulk-create-items`,
   `bulk-status-update`, `add-dependency`, `update-spec` (legacy `post-comment` ops
   from ≤ v0.4.0 queues drain as `update-spec` body writes).
 - `reason` is `"budget-exhausted"` or `"429"`.
@@ -228,7 +250,7 @@ pendingOps drain as body writes.)*
 
 Each task's description can carry a structured spec block — DOD plus the two
 verification layers — written and renovated at **touch points** (status flips), never
-as a bulk backfill campaign. The block is **derived prose**, same standing as the epic
+as a bulk backfill campaign. The block is **derived prose**, same standing as the story
 DoD seeding: markdown + verification artifacts stay canonical; the block never syncs
 back. Format `spec v1`:
 
@@ -316,24 +338,57 @@ Before ANY sequence of ClickUp calls:
 On a 429 or any rate-limit error: ledger the failed call, write all remaining work to
 `pendingOps` with reason `"429"`, stop loudly. **Never retry-loop.**
 
-## Bulk preference
+## Scope rollup (Token Budget math)
 
-Never loop single-task create/update calls when a bulk tool covers the batch. At
-session start, list the ClickUp server's actual tools and reconcile against this table
-(fix this table via a repo PR if names drift; the docs-era names are):
+Token Budget is a per-**Task** estimate (the $-tier dropdown). A **Story** and the **Epic**
+carry a *derived* scope = the sum of their descendants' Token Budgets — a deterministic
+math rollup, never authored, recomputed on sync (code does the math, not the model):
 
-| Purpose                    | Expected tool name (verify live) |
-| -------------------------- | -------------------------------- |
-| Workspace tree             | Get Workspace Hierarchy          |
-| Create a List in a Folder  | Create List                      |
-| Batch task creation        | Create Bulk Tasks                |
-| Batch status/field updates | Update Bulk Tasks                |
-| Dependency links           | Add dependency                   |
-| Search                     | Search Workspace                 |
-| Read one task              | Get Task                         |
-| One body/spec write        | Get Task + Update Task (2 calls) |
+- Parse each Task's Token Budget tier to its dollar value (`/\$(\d+)/` — `Vibes ($0)` → 0 …
+  `Stop. Just stop. ($5000+)` → 5000). A Task with no Token Budget contributes 0 and counts
+  as unbudgeted, so the rollup reports coverage and a partial estimate isn't misread as cheap.
+- **Story scope** = Σ its Tasks. **Epic total** = Σ its Stories.
+- Cache in the sidecar: `stories[key].scopeBudget = { usd, taskCount, budgetedCount }` and
+  `rcs[rc].scopeBudget = { usd, storyCount, taskCount, budgetedCount }`. Derived cache, no
+  `version` bump; recompute and overwrite each sync.
+- Surface on the board in the container's **description** as
+  `Scope: ~$<usd> (<budgetedCount>/<taskCount> tasks budgeted)` — NOT in the per-Task tier
+  dropdown (a sum rarely lands on a tier, and that dropdown means the item's OWN cost). The
+  Epic total rides the List description/content (a List has no task custom fields).
 
-One `bulk-create` per epic batch; one `bulk-status-update` per target status group.
+## Single-call create discipline
+
+The current ClickUp MCP server exposes **no bulk create or bulk update endpoint**
+(verified live 2026-06-14 — only single `Create Task` / `Update Task` exist). Earlier
+drafts of this doc assumed a "Create Bulk Tasks" tool; it does not exist. So:
+
+- **One `Create Task` per task, carrying its FULL detail in that single call** — status
+  (from `checked` via `statusMap`), the `interrogate-key` custom field, the description
+  (item text + the item's per-item **DOD** when the export carries one + the key
+  footer), AND the planning fields (`priority`, `time_estimate`, Token Budget +
+  Discipline `custom_fields` resolved to option UUIDs via the cached `fieldIds`). It is
+  NOT a shortcut to create a bare task and enrich it in a second call — that doubles the
+  call count and leaves a window where the task shows no budget/owner/spec. Gather
+  everything up front (the socratic estimate + DOD pass), confirm once, then create with
+  the full payload.
+- Status flips on existing tasks: one `Update Task` per task. Group identical flips to
+  plan the budget, but there is no bulk-status tool — estimate N single calls.
+- The `bulk-create-stories` / `bulk-create-items` / `bulk-status-update` names in the
+  `pendingOps` vocabulary are queue *groupings*, not a bulk API — each drains as one
+  `Create Task` / `Update Task` per task.
+- Verify the live tool list at session start; if a future server adds real bulk
+  endpoints, prefer them and update this section (via a repo PR).
+
+| Purpose                    | Live tool (verified 2026-06-14)         |
+| -------------------------- | --------------------------------------- |
+| Workspace tree             | Get Workspace Hierarchy                 |
+| Create a List in a Folder  | Create List                             |
+| Create a task (full detail)| Create Task — single, **no bulk**       |
+| Status / field update      | Update Task — single, **no bulk**       |
+| Dependency links           | Add dependency                          |
+| Search                     | Search Workspace                        |
+| Read one task              | Get Task                                |
+| One body/spec write        | Get Task + Update Task (2 calls)        |
 
 ## Idempotency and crash recovery
 
@@ -347,8 +402,10 @@ mechanisms:
    call's `custom_fields`. Discover the field id once per list (`Get Custom Fields`,
    1 call — counts against the budget estimate) and cache it in the sidecar as the
    RC's `interrogateKeyFieldId` (additive optional key, no `version` bump). If the
-   list has no such field, warn the user to add it (the MCP server cannot create
-   field definitions) and fall back to footer-only.
+   list has no such field, **suggest the user add a `short_text` custom field named
+   `interrogate-key` via the ClickUp web UI** (the MCP server cannot create field
+   definitions); until then fall back to footer-only — it works, but cross-run
+   reconciliation is less robust (descriptions are human-editable). Degrade, never block.
 
    **Secondary: the description footer.** Every created task's description still ends
    with exactly:

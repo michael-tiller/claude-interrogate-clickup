@@ -1,6 +1,6 @@
 ---
 name: clickup-push
-description: Initial push of a taskout RC into ClickUp (Folder → List → epics → tasks). Use when the user asks to push an RC to ClickUp, OR proactively immediately after a taskout interview completes in a project whose .clickup-map.json has enabled true and the RC is not yet mapped. Already-mapped RCs belong to clickup-sync instead.
+description: Initial push of a taskout RC into ClickUp (Folder → List = Epic → Story parents → Task subtasks). Use when the user asks to push an RC to ClickUp, OR proactively immediately after a taskout interview completes in a project whose .clickup-map.json has enabled true and the RC is not yet mapped. Already-mapped RCs belong to clickup-sync instead.
 ---
 
 # ClickUp Push (initial RC mirror)
@@ -44,28 +44,34 @@ directory (where `roadmap.md` and `.clickup-map.json` live).
    dropdown), **Discipline** (the list's dropdown) — guessing each value from the item
    text; let the user confirm or override in one pass. These are sticky estimates
    (protocol § `items[key].fields`) and ride the create calls below at zero extra cost.
-   Skip any field whose custom field is absent on the list (warn once). Sprint Points /
-   Tags are out of scope — never set them.
-9. **Create.** Discover the list's custom fields once (`Get Custom Fields`, 1 call —
-   already budgeted): cache `interrogateKeyFieldId` AND the planning `fieldIds`
-   (Token Budget + Discipline ids + their option maps) from the SAME response — no
-   extra spend. One bulk create for all epic parents (description = theme + goals
-   excerpt + the RC **Definition of Done** as reference acceptance/verification steps
-   + `interrogate-key` footer; key ALSO set in the `interrogate-key` custom field via
-   `interrogateKeyFieldId` — protocol § Idempotency). The DoD is reference prose in the
-   description so the acceptance bar is visible from creation — never its own task
-   (principle 3). Write sidecar. One
-   bulk create per epic for its items (parent = epic taskId, status from `checked`
-   via statusMap, key in field + footer). **On each item create, set the confirmed
-   planning fields inline — `priority`, `time_estimate`, and `custom_fields` for Token
-   Budget + Discipline (dropdown OPTION UUIDs resolved via `fieldIds`, never labels) —
-   riding the same create call (zero extra calls); write them to `items[key].fields`.**
-   Per-task spec blocks are NOT seeded at
-   creation — touch points own them (protocol § Per-task spec blocks), so a push
-   spends nothing on specs. Write sidecar after each batch. Ledger
-   after every call.
+   If a custom field is absent on the list, omit that column AND **suggest the user add
+   it via the ClickUp web UI** (field name + type, e.g. `Token Budget` (dropdown)) —
+   never block; the next user may not share your field setup (portability). Sprint
+   Points / Tags are out of scope — never set them.
+9. **Create — one `Create Task` per task, full detail in the single call** (there is no
+   bulk endpoint — protocol § Single-call create discipline; never create-then-enrich).
+   First discover the list's custom fields once (`Get Custom Fields`, 1 call — already
+   budgeted): cache `interrogateKeyFieldId` AND the planning `fieldIds` (Token Budget +
+   Discipline ids + their option maps) from the SAME response — no extra spend.
+   - **Story parents** (one `Create Task` each — set `task_type: Story` when the workspace
+     defines it; if not, omit it and suggest the user add a `Story` custom type via the
+     ClickUp web UI — portability): description = theme + goals excerpt + the RC
+     **Definition of Done** as reference acceptance/verification prose + `interrogate-key`
+     footer; key ALSO set in the `interrogate-key` custom field (protocol § Idempotency).
+     The milestone DoD is reference prose, never its own task (principle 3). Write sidecar.
+   - **Task subtasks** (one `Create Task` each, parent = story taskId, `task_type: Task` —
+     ClickUp's default): the SINGLE call carries
+     status (from `checked` via statusMap), the `interrogate-key` field + footer, the
+     description (item text + the item's **per-item DOD** from the export's `dod`, when
+     present, as an `**Acceptance / DOD**` block above the footer — the authored
+     requirement, visible from creation), AND the confirmed planning fields inline —
+     `priority`, `time_estimate`, and `custom_fields` for Token Budget + Discipline
+     (dropdown OPTION UUIDs via `fieldIds`, never labels). Write them to
+     `items[key].fields`. The renovated `spec v1` block is still a touch-point concern
+     (protocol § Per-task spec blocks) — the per-item DOD here IS the acceptance bar, not
+     the spec block. Write sidecar after each batch. Ledger after every call.
 10. **Dependencies.** Only where a blocker resolves to an already-mapped key in this
    sidecar — `Add dependency`. Anything else was already folded into description text
    at creation time; spend nothing extra.
-11. **Report.** Created counts (epics/items), calls spent, budget remaining, anything
+11. **Report.** Created counts (stories/tasks), calls spent, budget remaining, anything
     queued to pendingOps.
