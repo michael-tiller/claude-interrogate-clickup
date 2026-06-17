@@ -60,9 +60,15 @@ directory (where `roadmap.md` and `.clickup-map.json` live).
    planning fields inline — `priority`, `time_estimate`, and `custom_fields` for Token
    Budget + Discipline (dropdown OPTION UUIDs resolved via `fieldIds`, never labels) —
    riding the same create call (zero extra calls); write them to `items[key].fields`.**
-   Per-task spec blocks are NOT seeded at
-   creation — touch points own them (protocol § Per-task spec blocks), so a push
-   spends nothing on specs. Write sidecar after each batch. Ledger
+   **Warm vs cold descriptions (deep-shape-first).** When `taskSpecs: true` AND the
+   export item is *warm* — it carries a taskout-authored spec (`howToImplement` /
+   `designContext` / `dod`) — seed its `spec v1` block into the item description ON THE
+   CREATE CALL from the export: **How to implement** (`howToImplement` — the file:line /
+   seam path), **Design context** (`designContext` — traps + why), and **Definition of
+   Done** (`dod`). It rides the same create (zero extra calls). A *cold* item (no spec on
+   the export) keeps the thin description — touch points own its spec later (protocol §
+   Per-task spec blocks), so a cold push spends nothing on specs. With `taskSpecs: false`,
+   all descriptions stay thin as before. Write sidecar after each batch. Ledger
    after every call.
 10. **Dependencies.** Only where a blocker resolves to an already-mapped key in this
    sidecar — `Add dependency`. Anything else was already folded into description text
