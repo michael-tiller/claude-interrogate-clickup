@@ -265,7 +265,13 @@ DoD seeding: markdown + verification artifacts stay canonical; the block never s
 back. Format `spec v1`:
 
 ```
-**Definition of Done** _(spec v1)_
+**How to implement** _(spec v1)_
+- <the concrete path: file:line / seam to touch — from the taskout export's `howToImplement`, present only on a warm ticket>
+
+**Design context**
+- <traps + the why to carry into execution — from the export's `designContext`, warm only>
+
+**Definition of Done**
 - <binary, observable criteria — what QA actually checks; no prose hedges>
 
 **Automated coverage**
@@ -275,8 +281,14 @@ back. Format `spec v1`:
 1. <numbered manual script for FUTURE touch passes — e.g. start game; spawn critter, kill it; 2x speed, wait ~Xs; check logs for the message>
 ```
 
+The first two sections (**How to implement**, **Design context**) are the *implementation*
+spec, authored upstream by the taskout interview and carried verbatim from the export;
+they appear only on a warm ticket. The last three are the *verification* spec, drafted at
+touch points. A cold ticket has only the verification sections.
+
 Placement: between the item text and the `---` / `interrogate-key:` footer. The
-`_(spec v1)_` marker on the first heading is the version sentinel renovation keys off.
+`_(spec v1)_` marker rides the block's FIRST heading — **How to implement** on a warm
+ticket, else **Definition of Done** — and is the version sentinel renovation keys off.
 
 **Touch-point triggers** (only when the flip itself is already being written — spec
 work piggybacks on transitions, it never initiates calls):
@@ -290,6 +302,17 @@ In **auto/unattended runs** (flay-auto, no human at the boundary): skip the
 in-progress spec write and batch ALL spec drafting at the end flip (qa/complete),
 tagged `_(auto-drafted — review)_` — one write instead of two, fewer ClickUp
 interactions.
+
+**Warm seeding at create (deep-shape-first).** The *implementation* spec (**How to
+implement** + **Design context**) is not drafted at a flip — it is seeded once, at task
+CREATE, by `clickup-push` from the export's `howToImplement` / `designContext` (warm
+tickets only, `taskSpecs: true`), riding the single create call at zero extra cost. The
+export/markdown stays canonical: these two sections are carried from the export, never
+authored in ClickUp and never synced back. A cold ticket (no export spec) gets no
+implementation spec — there is no shape to seed yet, and touch points only ever own the
+*verification* sections. The renovation rule applies unchanged: a later touch preserves
+the seeded How to implement / Design context verbatim and only adds/renovates the
+verification sections — never re-derives or discards the taskout-authored spec.
 
 **Sourcing precedence** for drafted content: the key's verification artifact
 (`.captain-sdlc/verifications/<key>.md`) → RC Definition of Done bullets that name the

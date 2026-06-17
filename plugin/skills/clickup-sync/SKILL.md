@@ -61,7 +61,10 @@ sidecar. Output dir defaults to the current working directory.
      write **Automated coverage** + **Human QA steps** (sourced verification-artifact →
      RC DoD → item text) and review the DOD. Renovate whatever the description holds
      into the current `spec v1` shape — carry prior content forward, never discard;
-     preserve the `interrogate-key` footer exactly. 1 `Get Task` + 1 `Update Task` per
+     preserve the `interrogate-key` footer exactly. A warm-created task already carries
+     **How to implement** / **Design context** from taskout — carry those two sections
+     forward verbatim; a flip only drafts/renovates the verification sections, never
+     re-derives the taskout-authored implementation spec. 1 `Get Task` + 1 `Update Task` per
      touched task, ledgered and estimated up front; overflow → an `update-spec` op.
      Unattended runs: skip the in-progress write, batch all drafting at the end flip
      tagged `_(auto-drafted — review)_`.
