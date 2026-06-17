@@ -67,9 +67,15 @@ directory (where `roadmap.md` and `.clickup-map.json` live).
      requirement, visible from creation), AND the confirmed planning fields inline —
      `priority`, `time_estimate`, and `custom_fields` for Token Budget + Discipline
      (dropdown OPTION UUIDs via `fieldIds`, never labels). Write them to
-     `items[key].fields`. The renovated `spec v1` block is still a touch-point concern
-     (protocol § Per-task spec blocks) — the per-item DOD here IS the acceptance bar, not
-     the spec block. Write sidecar after each batch. Ledger after every call.
+     `items[key].fields`. **Warm vs cold (deep-shape-first):** with `taskSpecs: true`, a
+     *warm* item — the export carries `howToImplement` / `designContext` — also gets its
+     `spec v1` implementation sections seeded into THIS same single create call from the
+     export: **How to implement** (`howToImplement` — the file:line / seam path) and
+     **Design context** (`designContext` — traps + why), above the footer, at zero extra
+     cost. A *cold* item (no export spec) seeds none — the verification sections of its
+     `spec v1` block stay a touch-point concern (protocol § Per-task spec blocks). The
+     per-item DOD here is the acceptance bar; the seeded How/Design sections are the
+     implementation spec. Write sidecar after each batch. Ledger after every call.
 10. **Dependencies.** Only where a blocker resolves to an already-mapped key in this
    sidecar — `Add dependency`. Anything else was already folded into description text
    at creation time; spend nothing extra.

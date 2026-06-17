@@ -4,6 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.7.0] - 2026-06-17
+
+### Added
+
+- **Warm-ticket spec seeding at create (deep-shape-first).** When `taskSpecs: true` and a
+  taskout export carries a per-ticket implementation spec (`howToImplement` /
+  `designContext`, new in claude-interrogate ≥ 0.1.16), `clickup-push` now seeds those two
+  `spec v1` sections — **How to implement** + **Design context** — into the task
+  description on the single `Create Task` call, alongside the existing per-item DOD /
+  planning fields, at zero extra ClickUp calls. A *cold* ticket (no export spec) keeps the
+  thin description; touch points still own its verification spec. The `spec v1` format
+  gains the two implementation sections (the version sentinel rides the block's first
+  heading); the renovation rule carries them forward verbatim, so a later `clickup-sync`
+  touch only drafts/renovates the verification sections and never re-derives or discards
+  the taskout-authored implementation spec. The export/markdown stays canonical — these
+  sections are carried from the export, never authored in ClickUp and never synced back.
+
+### Fixed
+
+- **Version drift.** `plugin/.codex-plugin/plugin.json` was stranded at `0.2.1` while
+  `VERSION`, `marketplace.json`, and `.claude-plugin/plugin.json` had advanced; all four
+  now agree at `0.7.0`.
+
 ## [0.6.1] - 2026-06-17
 
 ### Changed
