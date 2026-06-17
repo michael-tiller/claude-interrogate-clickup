@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.6.1] - 2026-06-17
+
+### Changed
+
+- **Docs:** `protocol.md` § Hierarchy mapping now names the planning vocabulary
+  (List/RC = milestone, `### Targeted` subsection = epic, checkbox item = ticket) and
+  states that ticket granularity is owned upstream by the taskout interview — tickets
+  are kept as small/explicit as possible there to keep goals transparent, and the
+  mirror only **honors** that decomposition (never splits/merges/resizes items,
+  Principle 1). No behavior change; clarifies the seam between taskout and the mirror.
+
 ## [0.6.0] - 2026-06-13
 
 ### Added
