@@ -32,6 +32,16 @@ this document wins.
 Sprints in ClickUp are Lists; an RC may target an existing sprint List by ID instead of
 a created List. The ClickUp MCP server cannot create sprints — only plain Lists.
 
+**Vocabulary & granularity ownership.** In planning terms the **List/RC is the
+milestone**, each `### Targeted` subsection is an **epic** (one feature), each checkbox
+item is a **ticket** (one goal). Tickets are kept **as small as possible — one goal
+each** — on purpose: more tickets is more explicit, and explicit keeps the goal of every
+piece of work transparent. The *decomposition* (how fine, and when one phase fans out
+into several tickets) is owned upstream by the taskout interview; the mirror's job is to
+**honor** it — it reflects whatever checkboxes taskout produced and **never splits,
+merges, or resizes them** (Principle 1), so the fine-grained explicitness authored in
+taskout survives intact into ClickUp.
+
 ## Sidecar files
 
 Both live in `.captain-sdlc/` under the consuming project's output directory — the
