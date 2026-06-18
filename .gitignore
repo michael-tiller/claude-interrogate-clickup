@@ -1,3 +1,7 @@
+# Local Claude Code state — currently shielded only by the user's *global*
+# gitignore, which contributors won't have. Guard it in-repo too.
+.claude/
+
 # Defensive only — the ledger lives in consuming projects, not this repo.
 # Consuming projects should gitignore .clickup-ledger.json themselves (the
 # README explains why: it churns on every ClickUp call).

@@ -1,5 +1,4 @@
 # claude-interrogate-clickup
-Updated: 2026-06-11
 
 A companion plugin to claude-interrogate that mirrors taskout RC checklists into ClickUp via ClickUp's official remote MCP server. Markdown is canonical; ClickUp is the mirror. One-way sync only.
 
@@ -12,13 +11,15 @@ Pushes roadmap structure from [claude-interrogate](https://github.com/michael-ti
 - **### Targeted subsections** → epic parent tasks
 - **Checkbox items** → subtasks under their epic
 
-Requires the claude-interrogate plugin >= 0.1.8 (for the `design_taskout_export` tool).
+Each task also carries mirror-only planning metadata, proposed by the model and confirmed once (planning-poker): **Priority**, **Time Estimate**, **Token Budget**, and **Discipline**. When a taskout export includes a per-ticket implementation spec, `clickup-push` seeds it into the task description at create — all at zero extra ClickUp calls.
+
+Requires the claude-interrogate plugin >= 0.1.8 (for the `design_taskout_export` tool); warm-ticket spec seeding needs >= 0.1.16.
 
 ## Hierarchy and Mapping
 
 Each consuming project maintains a `.clickup-map.json` sidecar that records the ClickUp Folder and per-RC List mappings. The plugin also maintains:
 
-- `.clickup-ledger.json` (gitignored): rolling 24-hour call budget tracker (default 300 calls, 30-call reserve on paid plans without AI add-on)
+- `.captain-sdlc/.clickup-ledger.json` (gitignored; legacy: repo root): rolling 24-hour call budget tracker (default 300 calls, 30-call reserve on paid plans without AI add-on)
 - `pendingOps[]` in the sidecar: durable queue of deferred work when budget is exhausted
 
 The optional `statusMap` keys `inProgress` and `qa` support intermediate-state mirroring from the Seam 7 release pass (claude-release-clickup).
@@ -67,4 +68,4 @@ Each project's `.clickup-map.json` has an `enabled` boolean. Set to `false` to d
 
 ## Status
 
-v0.1.0, pre-verification — live ClickUp tool names and sprint-List addressability still to be confirmed (Phase 5 roadmap checklist pending).
+See [CHANGELOG.md](CHANGELOG.md) for the current release and version history.
