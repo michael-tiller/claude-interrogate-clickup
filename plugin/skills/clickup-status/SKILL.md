@@ -43,8 +43,11 @@ only `design_taskout_export` (core calls are free — they never touch ClickUp).
      work not reflected in the checkbox. Tell the user to run the catch-up —
      claude-release-clickup `release-pass.mjs --range <tag>..HEAD --exports <export> --apply`
      (the `--range` mode applies footers without waiting for a `/release` manifest).
-   - `Needs-QA:`/`Implements:` map to intermediate states (qa/in-progress); the free
-     check can't confirm ClickUp's live status — list them and suggest `--verify`.
+   - `Needs-QA:`/`Implements:` map to intermediate states (qa/in-progress) — these are
+     mirrored by `clickup-sync`'s derived-lifecycle pass (protocol § Derived lifecycle on
+     sync), so a stale intermediate means the project hasn't synced since the footer
+     landed. The free check can't confirm ClickUp's live status — list them, suggest a
+     `clickup-sync`, and offer `--verify` for a live spot-check.
 
 ## `--verify` (budget-gated spot check)
 
