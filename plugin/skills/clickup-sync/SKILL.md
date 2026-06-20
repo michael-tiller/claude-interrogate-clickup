@@ -47,7 +47,8 @@ sidecar. Output dir defaults to the current working directory.
    - **Key gone but `state: "active"`** → close in place (one bulk-status-update with
      the `closed` status), flip mapping to `"retired"`. NEVER delete.
    - **Verification → task body.** Any key moved to its `qa` / complete / `blocked`
-     status this run — here, or via a drained op in step 2 — and holding a
+     status this run — here, via a drained op in step 2, or a derived qa flip in
+     step 6 — and holding a
      `.captain-sdlc/verifications/<key>.md` artifact → write the artifact into the
      task's DESCRIPTION, never a comment (comments scroll away; DOD/QA specs must stay
      visible): with `taskSpecs: true` it feeds the spec-block write below (same Get+
@@ -80,7 +81,40 @@ sidecar. Output dir defaults to the current working directory.
    `items[key].fields.startedAt` — set-once, never overwrite an existing `startedAt`
    so re-flaying keeps the original start (protocol § Flay awareness). Absent statusMap
    key → skip silently.
-6. **Bookkeeping.** Update `checked`, `lastPushedAt`, `lastSyncAt` per protocol; write
-   sidecar after each batch; ledger after every call.
-7. **Report.** Per-RC drift summary (created / status-flipped / retired / remapped),
-   pendingOps drained and remaining, calls spent, budget remaining, active flay if any.
+6. **Derived lifecycle.** Mirror INTERMEDIATE states (in-progress / qa) from Seam 7
+   footers by CONSUMING the existing engine — never add a footer parser
+   (protocol § Derived lifecycle on sync). Run
+   `release-pass.mjs --list-transitions --range <lastSyncedRef>..HEAD --repo <consuming
+   project's git repo>` (absent `lastSyncedRef` → fall back to the consuming repo's last
+   tag); take only `isItem` rows. Per item key, derive its status by PRECEDENCE: `[x]` →
+   complete (owned by the step-3 `checked`-flip path — the derived emitter NEVER emits
+   complete); else a live flay-state key → in-progress (step 5); else the latest
+   transition (`Needs-QA:` → qa, `Implements:` → in-progress); else todo. Emit a
+   `bulk-status-update` ONLY when the derived intermediate differs from the cached
+   `items[key].derivedStatus`, then update the cache. The step-3 checked-flip path is the
+   `complete` owner — it sets `derivedStatus = complete` on `[x]` and CLEARS it on an
+   uncheck (so a later qa/in-progress re-emits). Map via `statusMap.inProgress` / `qa`;
+   absent key → warn-and-skip (never invent a status). Derived ops are idempotent
+   `set status → X`. Advance `lastSyncedRef` to HEAD ONLY after every derived op has
+   drained or been re-queued to `pendingOps`, persisted in the SAME atomic sidecar write.
+7. **Blocked tags.** Re-derive two per-item tags each sync (protocol § Blocked tags);
+   these are a DIFFERENT axis from the RC-level `## Blockers & Dependencies` link.
+   First ensure `blocked-dep` and `blocked-hitl` exist in the space; a missing tag →
+   degrade-and-suggest (`add_tag` no-ops on an undefined tag). Derive:
+   - **`blocked-dep`** = any of the item's exported `blockedBy` keys whose `checked` is
+     false. A `blockedBy` REFERENCE missing from a CLEAN export STAYS blocking
+     (stale-reference — flag for repair, never unblock); do NOT conflate with class-b.
+   - **`blocked-hitl`** = a live entry in the flay-owned ledger
+     `.captain-sdlc/blocked-hitl.json` (read advisorily, same place step 5 reads
+     flay-state). A ledger ENTRY whose own subject key is retired/absent MAY be dropped —
+     but ONLY on a strict CLEAN parse (export signals parse success); else KEEP it
+     (conservative).
+   Tags are BIDIRECTIONAL: ADD when blocked; REMOVE only if previously stamped (per the
+   sidecar's last-derived state) — never remove a tag the mirror didn't add. Budget-gate
+   and ledger every `add_tag` / `remove_tag` like any call.
+8. **Bookkeeping.** Update `checked`, `lastPushedAt`, `lastSyncAt`, and `lastSyncedRef`
+   per protocol; write sidecar (atomically — temp+rename) after each batch; ledger after
+   every call.
+9. **Report.** Per-RC drift summary (created / status-flipped / lifecycle-derived /
+   blocked-tagged / retired / remapped), pendingOps drained and remaining, calls spent,
+   budget remaining, active flay if any.

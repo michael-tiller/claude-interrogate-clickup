@@ -137,11 +137,21 @@ the files into `.captain-sdlc/` on the next write. Never maintain both copies.
   RC) — then **sticky**: sync mirrors a value to ClickUp only when the STORED value
   changes, never re-prompting. An active item with no `fields` block = "needs initial
   estimate". Estimates are mirror metadata: they live HERE, never in the canonical
-  roadmap markdown (Principle 1). Sprint Points and Tags are intentionally NOT
-  mirrored (no MCP write path / out of scope).
+  roadmap markdown (Principle 1). Sprint Points is intentionally NOT mirrored (no MCP
+  write path). **Tags carve-out:** general user tags remain out of scope, but two
+  *derived blocked tags* — `blocked-dep` and `blocked-hitl` — ARE mirrored via the
+  ClickUp `add_tag` / `remove_tag` MCP tools (which exist; the earlier blanket
+  "no write path" rationale was stale). See § Blocked tags.
 - `taskSpecs: true` (OPTIONAL, additive, no `version` bump) enables per-task spec
   blocks (§ Per-task spec blocks). Absent or `false` → skills do no spec work and
   spend no spec calls. Configure via `/clickup-setup`.
+- An RC entry MAY carry an additive optional `lastSyncedRef` (a git SHA) — the cursor
+  marking the last commit whose Seam 7 transitions have been drained into ClickUp by the
+  derived-lifecycle pass (§ Derived lifecycle on sync). `clickup-sync` runs
+  `release-pass.mjs --list-transitions` over `<lastSyncedRef>..HEAD`; absent → fall back
+  to the last tag. The cursor advances to `HEAD` ONLY after every derived op in the range
+  has drained OR been re-queued to `pendingOps`, persisted in the SAME atomic sidecar
+  write that records those ops. Additive optional key, no `version` bump.
 - `enabled: false` short-circuits every skill: report "ClickUp sync is disabled for
   this project (.clickup-map.json enabled=false)" and stop. No ClickUp calls, no
   questions.
@@ -159,6 +169,14 @@ the files into `.captain-sdlc/` on the next write. Never maintain both copies.
   `complete`/`qa`/`in-progress`/`to-do`) so the release pass skips re-setting a story
   whose computed status is unchanged; absent → treat as changed. No `version` bump.
   Story status is DERIVED from task state (release-pass `stories[]` rollup), never authored.
+- An item entry MAY carry an additive optional `derivedStatus` (the per-task lifecycle
+  cache — `in-progress`/`qa`, the INTERMEDIATE states only) so `clickup-sync`'s derived
+  emitter skips re-setting a task whose computed intermediate status is unchanged; absent
+  → treat as changed. Mirrors the story `status` cache. `derivedStatus` is DERIVED from
+  Seam 7 transitions + flay state (§ Derived lifecycle on sync), never authored. No
+  `version` bump. The terminal `complete` state is NOT cached here — it is owned by the
+  `checked` flip path, which updates/clears `derivedStatus` whenever it changes the board
+  status (§ Derived lifecycle on sync).
 - A story entry MAY also carry a derived `scopeBudget` (the summed Token Budget of its
   child tasks — a deterministic $ rollup) and the RC/Epic a top-level total. Derived by
   math, never authored. (Rollup mechanics land with the budget-rollup work.)
@@ -219,6 +237,86 @@ read it ADVISORILY — never act destructively on it, never treat stale state
   start-date write rides the status update (zero extra calls). Normal budget rules
   apply. If `inProgress` is absent, skip silently — never invent a status.
 - **clickup-status**: report the active task (key, phase, age) alongside drift.
+
+## Derived lifecycle on sync
+
+The roadmap markdown stays **binary** (`[ ]` / `[x]`) — no four-state glyphs, no
+in-progress/qa markers in the file (Principle 1). Intermediate lifecycle (in-progress,
+qa) is instead **DERIVED on each `clickup-sync`** by consuming the EXISTING Seam 7
+engine, `release-pass.mjs --list-transitions` (claude-release-clickup). The mirror adds
+NO new footer parser — `--list-transitions` already resolves the latest verb per key
+from commit footers (`Implements:` → `in-progress`, `Needs-QA:` → `qa`, `Completes:` →
+`complete`; last verb wins per key) and emits `{ key, verb, state, commit, rcId,
+isItem }`.
+
+- **Range & repo.** `clickup-sync` invokes the engine with `--range
+  <lastSyncedRef>..HEAD --repo <consuming-project-git-repo>` — the `--repo` is the
+  project whose roadmap + commits live there, NOT the plugin repo. Absent
+  `lastSyncedRef` → fall back to the consuming repo's last tag. Only `isItem` rows are
+  candidates for per-task mirroring (story rollup is the release pass's job).
+- **Cursor advance ordering.** Advance `lastSyncedRef` to `HEAD` ONLY after every
+  derived op in the range has drained OR been re-queued to `pendingOps`. Persist the
+  cursor in the SAME sidecar write that records the drained ops — never advance ahead of
+  durably-recorded work.
+- **At-least-once + idempotent (crash-safety).** Derived ops are idempotent `set status
+  → X` (never deltas), so a re-emit after a failed sidecar write merely re-sets the same
+  status — harmless. All sidecar writes are atomic (temp-write + rename) so a crash never
+  leaves a half-written map.
+- **Precedence per item key** (highest first):
+  1. `[x]` (checked) → `complete` — **owned by the existing `checked`-changed flip
+     path**, NOT the derived emitter. The derived emitter NEVER emits `complete` (no
+     double-write).
+  2. else a live flay-state entry for the key → `in-progress` (existing § Flay awareness
+     path).
+  3. else the latest transition from `--list-transitions`: `Needs-QA:` → `qa`,
+     `Implements:` → `in-progress`.
+  4. else `todo`.
+- **Intermediate-only emitter + `derivedStatus` cache.** The derived emitter mirrors
+  ONLY the intermediate states (`in-progress` / `qa`). It caches the last-emitted
+  intermediate in `items[key].derivedStatus` (additive, mirrors the story `status`
+  cache) and emits a `bulk-status-update` only when the freshly-derived intermediate
+  DIFFERS from the cache — a re-sync with no change spends zero calls.
+- **Checked-flip path owns `complete`, keeps the cache honest.** When the `checked` flip
+  path changes the board status it MUST update/clear `derivedStatus`: set the cache to
+  `complete` on `[x]`, and CLEAR it on an uncheck. Clearing on uncheck is what lets a
+  later `qa`/`in-progress` re-emit correctly (without it, a previously-cached
+  intermediate would suppress the post-uncheck re-emit). Statuses map through `statusMap`
+  (`inProgress` / `qa` keys); an absent statusMap key → warn-and-skip that intermediate
+  (never invent a status), exactly as Flay awareness already does.
+
+## Blocked tags
+
+Two per-item ClickUp **tags** reflect a task that is not runnable. They are a DIFFERENT
+axis from the RC-level `## Blockers & Dependencies` link mapping (§ Hierarchy mapping):
+that maps a *dependency relationship* to a ClickUp dependency link; these tag an
+*individual task* as currently blocked. Both are mirror metadata, derived each sync,
+never authored in markdown (Principle 1). Mirrored via the ClickUp `add_tag` /
+`remove_tag` MCP tools (§ Tags carve-out).
+
+- **`blocked-dep`** — derived each sync: present when ANY of the item's `blockedBy` keys
+  (from the taskout export's per-item `blockedBy`, Targeted-only) resolves to a key whose
+  `checked` is `false`. (The mirror consumes `blockedBy` / `owner` from the
+  `design_taskout_export` output; it does not parse the roadmap itself.)
+- **`blocked-hitl`** — read advisorily from the flay-owned ledger
+  `.captain-sdlc/blocked-hitl.json` (same `.captain-sdlc/` dir, same advisory standing as
+  `flay-state.json`; flay appends a key on an auto→HITL downgrade and clears it at flay
+  step-6 "Done"). The mirror only READS it — it never appends or owns entries.
+- **Tags must pre-exist.** Ensure both `blocked-dep` and `blocked-hitl` exist in the
+  space FIRST; if a tag is undefined, `add_tag` no-ops — so degrade-and-suggest (name the
+  missing tag, suggest the user add it via the ClickUp web UI), the same missing-custom-
+  field rule (§ `fieldIds` portability). Never block.
+- **Bidirectional, stamp-tracked.** Each sync re-derives both tags per item: **ADD** the
+  tag when blocked; **REMOVE** it only if it was PREVIOUSLY stamped (tracked in the
+  sidecar / last-derived state) — never blindly remove a tag the mirror didn't add.
+- **Two "absent" key-classes — do NOT conflate:**
+  - **(a) a `blockedBy` REFERENCE missing from a clean export** = a *blocking
+    stale-reference* (rewording a blocker item mints a new key). It STAYS blocking — flag
+    it for repair, NEVER drop it or treat the task as unblocked.
+  - **(b) a ledger ENTRY whose OWN subject key is retired / absent-after-clean-parse**
+    MAY be dropped — but ONLY on a STRICT clean parse (the export signals parse success,
+    no parse-diagnostics errors). If the parse is not provably clean, treat the absence as
+    inconclusive and KEEP the entry (conservative — never strand a live HITL marker on a
+    transient parse miss).
 
 ## Verification in the task body
 
@@ -422,6 +520,8 @@ drafts of this doc assumed a "Create Bulk Tasks" tool; it does not exist. So:
 | Search                     | Search Workspace                        |
 | Read one task              | Get Task                                |
 | One body/spec write        | Get Task + Update Task (2 calls)        |
+| Add a tag to a task        | Add Tag to Task (`blocked-dep`/`blocked-hitl`) |
+| Remove a tag from a task   | Remove Tag from Task                    |
 
 ## Idempotency and crash recovery
 

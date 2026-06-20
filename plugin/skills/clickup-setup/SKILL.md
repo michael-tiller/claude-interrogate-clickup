@@ -34,8 +34,10 @@ lookup (changing the project Folder or an RC's target list requires one
       the split).
    5. **Status map** — edit per-RC `statusMap`. Core keys: `open`, `done`,
       `closed`. Optional keys: `inProgress`, `qa` — needed for intermediate-state
-      mirroring from the Seam 7 release pass (claude-release-clickup). Statuses
-      must exist on the target list; never invent one.
+      mirroring, whether from the Seam 7 release pass (claude-release-clickup) or
+      `clickup-sync`'s own derived-lifecycle pass (protocol § Derived lifecycle on
+      sync), which derives the same in-progress/qa states from Seam 7 footers between
+      releases. Statuses must exist on the target list; never invent one.
    6. **Per-task spec blocks** — toggle the optional `taskSpecs` key (protocol
       § Per-task spec blocks). On: status flips also draft/renovate each touched
       task's DOD / Automated coverage / Human QA steps block (+2 ledgered calls per

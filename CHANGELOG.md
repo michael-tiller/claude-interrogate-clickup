@@ -4,7 +4,53 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [0.7.0] - 2026-06-17
+## [0.8.0] - 2026-06-18
+
+### Added
+
+- **Derived lifecycle on sync (intermediate states, no new parser).** `clickup-sync` now
+  mirrors the in-progress / qa lifecycle that the binary `[ ]`/`[x]` roadmap can't carry —
+  by CONSUMING the existing Seam 7 engine `release-pass.mjs --list-transitions`
+  (claude-release-clickup), never a new footer parser. It runs the engine over
+  `<lastSyncedRef>..HEAD` with `--repo` = the consuming project's git repo (fallback: the
+  last tag when the cursor is absent), takes the `isItem` rows, and derives each task's
+  status by precedence: `[x]` → complete (owned by the existing checked-flip path; the
+  derived emitter NEVER emits complete — no double-write); else a live flay-state key →
+  in-progress; else the latest transition (`Needs-QA:` → qa, `Implements:` → in-progress);
+  else todo. The derived emitter is INTERMEDIATE-ONLY and emits a `bulk-status-update` only
+  when the freshly-derived state differs from the new additive `items[key].derivedStatus`
+  cache (a no-change re-sync spends zero calls). The checked-flip path updates/clears
+  `derivedStatus` whenever it moves the board status (→ complete on `[x]`, cleared on
+  uncheck) so a later qa/in-progress re-emits correctly. Derived ops are idempotent
+  `set status → X`; the additive `lastSyncedRef` cursor advances to HEAD only after every
+  op has drained or been re-queued to `pendingOps`, persisted in the SAME atomic
+  (temp+rename) sidecar write — at-least-once + idempotent crash-safety. `lastSyncedRef`
+  and `items[key].derivedStatus` are additive optional sidecar keys (no `version` bump).
+- **Blocked tags (`blocked-dep` / `blocked-hitl`).** `clickup-sync` now reflects an
+  un-runnable task via two derived ClickUp tags (a DIFFERENT axis from the RC-level
+  `## Blockers & Dependencies` dependency-link mapping). `blocked-dep` is derived each
+  sync — any of the item's exported `blockedBy` keys whose `checked` is false; `blocked-hitl`
+  is read advisorily from the flay-owned ledger `.captain-sdlc/blocked-hitl.json` (same
+  standing as `flay-state.json`). Tags are BIDIRECTIONAL (add when blocked; remove only if
+  previously stamped) and must pre-exist in the space — a missing tag degrades-and-suggests
+  (the missing-custom-field rule), never blocks. Two "absent" key-classes are explicitly NOT
+  conflated: a `blockedBy` REFERENCE missing from a clean export STAYS blocking (stale-ref —
+  flag for repair, never unblock); a ledger ENTRY whose own subject key is retired MAY be
+  dropped, but ONLY on a strict clean parse (else keep, conservative). Consumes the new
+  `blockedBy` / `owner` fields from `design_taskout_export` (claude-interrogate-src).
+
+### Changed
+
+- **Docs (`protocol.md`):** new § Derived lifecycle on sync and § Blocked tags; the stale
+  "Sprint Points and Tags … no MCP write path / out of scope" line is amended as a
+  **carve-out** (not a deletion) — the two derived blocked tags ARE mirrored via the
+  `add_tag` / `remove_tag` MCP tools, which exist. `lastSyncedRef` and
+  `items[key].derivedStatus` documented as additive optional sidecar keys. `clickup-status`
+  and `clickup-setup` prose reconciled to note that intermediate states are now mirrored by
+  `clickup-sync`'s derived pass between releases, not only by `/release`'s release pass. No
+  sidecar `version` bump (all new keys are additive).
+
+
 
 ### Added
 
