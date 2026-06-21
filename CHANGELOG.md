@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+
+- **Flay/QA-driven lifecycle mirror + per-ticket stopwatch (opt-in `trackTime`).** The
+  in-progress flip was already implemented in `clickup-sync`, but it is pull-based —
+  nothing ran it during a flay, so a flayed ticket sat at TODO with no timer until a
+  manual sync, and a passing qa left it stuck at Review. Now, when a project sets
+  `trackTime: true`, a new `PostToolUse` hook (`lib/clickup-lifecycle-hook.mjs`, matched
+  to `Write|Edit`, ADR 0002) fires on two captain-sdlc lifecycle writes and nudges
+  `clickup-sync` for the active RC: (1) a **flay begin** (`flay-state.json` for a mapped
+  task not yet in-progress) → in-progress + start the ClickUp **stopwatch**; (2) a **qa
+  pass** (`qa/<key>/verdict.json` with `result: "pass"` for a mapped task not yet
+  complete) → move QA/Review → **Done** + stop the stopwatch (logging actual time taken).
+  flay and qa never call the tracker: they fire the hook (their state writes), and the
+  plugin tied to the hook drives the budget-ledgered skill. The hook is idempotent
+  (skips once the task shows the target `derivedStatus` `in-progress`/`complete`) and
+  no-ops when `trackTime` is off. `clickup-sync` step 5 (now "Flay & QA awareness")
+  manages the stopwatch (START on a live flay, STOP at completion — a `qa` review flip
+  does not stop it) and flips a passing-verdict key to `statusMap.done` as a second
+  complete-emitter alongside the `[x]` path (both guard on `derivedStatus`, no
+  double-write). ClickUp allows one running timer per user; the single `activeTimer` is
+  tracked top-level in the sidecar. Configure via `/clickup-setup`. Time entries are
+  **collected only** for now — consuming the data is future work.
+
 ## [0.8.0] - 2026-06-18
 
 ### Added

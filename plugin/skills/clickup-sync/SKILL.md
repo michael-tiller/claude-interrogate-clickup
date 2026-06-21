@@ -74,13 +74,38 @@ sidecar. Output dir defaults to the current working directory.
    genuinely replaced (close + create)?" before spending any calls. A remap updates
    the sidecar key and the task's footer is left stale — note it for the next created
    task description, never spend a call just to rewrite a footer.
-5. **Flay awareness.** If `.captain-sdlc/flay-state.json` exists and is live (not
+5. **Flay & QA awareness.** If `.captain-sdlc/flay-state.json` exists and is live (not
    phase `done`), and the active task's RC is mapped with `statusMap.inProgress`
    set: queue one `bulk-status-update` op moving its mirrored task to in-progress AND
    setting its `start_date` to today (same update, zero extra calls); record
    `items[key].fields.startedAt` — set-once, never overwrite an existing `startedAt`
    so re-flaying keeps the original start (protocol § Flay awareness). Absent statusMap
    key → skip silently.
+
+   **Stopwatch (opt-in `trackTime: true`; skip this paragraph entirely when off).**
+   Independent of the status flip — the timer needs only the `taskId`:
+   - **START** — a live flay names this mapped task and no top-level `activeTimer`
+     already covers it → `start_time_tracking` its `taskId`, record
+     `activeTimer = { rcId, key, taskId, entryId, startedAt }`. Idempotent: an
+     `activeTimer` already on this task = already running → do nothing.
+   - **STOP** — `activeTimer` is set and its task is no longer being timed: it reached
+     its terminal complete status this run (the `[x]`/`Completes:` flip from step 3 /
+     step 6) OR its flay-state is gone and it is no longer in-progress (abandoned) →
+     `stop_time_tracking`, then clear `activeTimer`. A `qa` flip does NOT stop it — the
+     stopwatch runs until Completes (logs actual time taken).
+   Each start/stop is one ledgered, budget-gated call; best-effort — over budget or on a
+   tool error, SKIP (never queue a stale timer op, never block the sync); time-tracking
+   tools unavailable → degrade-and-skip (protocol § Flay awareness — stopwatch).
+
+   **QA completion (opt-in `trackTime: true`; advisory, same standing as flay-state).**
+   A mapped key with a passing verdict at `.captain-sdlc/qa/<key>/verdict.json`
+   (`result: "pass"`) → move it from its `qa`/review status to `statusMap.done`
+   (Closed/Done) and STOP its stopwatch (clear `activeTimer`). Set
+   `derivedStatus: complete`; idempotent — skip when already complete. A second
+   sanctioned complete-emitter alongside the step-3 `[x]` checked-flip path (both guard
+   on `derivedStatus`, so no double-write); the canonical `[x]` still lands via the
+   Seam 7 release pass. Any verification artifact for the key → write it to the body
+   (step 3 / § Verification).
 6. **Derived lifecycle.** Mirror INTERMEDIATE states (in-progress / qa) from Seam 7
    footers by CONSUMING the existing engine — never add a footer parser
    (protocol § Derived lifecycle on sync). Run
@@ -117,4 +142,4 @@ sidecar. Output dir defaults to the current working directory.
    every call.
 9. **Report.** Per-RC drift summary (created / status-flipped / lifecycle-derived /
    blocked-tagged / retired / remapped), pendingOps drained and remaining, calls spent,
-   budget remaining, active flay if any.
+   budget remaining, active flay if any, and any stopwatch started/stopped this run.

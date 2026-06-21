@@ -145,6 +145,19 @@ the files into `.captain-sdlc/` on the next write. Never maintain both copies.
 - `taskSpecs: true` (OPTIONAL, additive, no `version` bump) enables per-task spec
   blocks (§ Per-task spec blocks). Absent or `false` → skills do no spec work and
   spend no spec calls. Configure via `/clickup-setup`.
+- `trackTime: true` (OPTIONAL, additive, no `version` bump) opts a project into the
+  **flay-driven stopwatch + real-time status** workflow (§ Flay awareness): flay calls
+  `clickup-sync` at a flay's begin (mirror the ticket to in-progress and START its
+  ClickUp stopwatch) and `/qa` calls it at Completes (flip complete and STOP the
+  stopwatch). Absent or `false` → today's behavior: no timer, and the mirror updates
+  only when the user runs a sync by hand. Configure via `/clickup-setup`. The time
+  entries are **collected only** for now — nothing reads them back yet; consuming the
+  data is future work.
+- `activeTimer` (OPTIONAL, additive, no `version` bump) — a TOP-LEVEL record of the
+  single mirror-started running timer (ClickUp allows only ONE running timer per user):
+  `{ rcId, key, taskId, entryId, startedAt }`. Present ⇔ the mirror has a stopwatch
+  running for that ticket; cleared when it stops it. The mirror trusts this record as
+  the source of truth — it does NOT poll ClickUp for the running entry.
 - An RC entry MAY carry an additive optional `lastSyncedRef` (a git SHA) — the cursor
   marking the last commit whose Seam 7 transitions have been drained into ClickUp by the
   derived-lifecycle pass (§ Derived lifecycle on sync). `clickup-sync` runs
@@ -229,14 +242,52 @@ schema_version 1, single object) names the task currently being executed. Blades
 read it ADVISORILY — never act destructively on it, never treat stale state
 (phase `done`, old `updatedAt`) as live:
 
-- **clickup-sync**: when the active task's RC is mapped AND its `statusMap` has the
-  optional `inProgress` key, the sync may queue ONE `bulk-status-update` op moving
-  that task's mirrored ClickUp task to in-progress. **On that same update, set the
-  task's `start_date` to today and record `items[key].fields.startedAt`** — set-once:
-  never overwrite an existing `startedAt`, so re-flaying keeps the original start. The
-  start-date write rides the status update (zero extra calls). Normal budget rules
-  apply. If `inProgress` is absent, skip silently — never invent a status.
-- **clickup-status**: report the active task (key, phase, age) alongside drift.
+- **clickup-sync — in-progress status.** When the active task's RC is mapped AND its
+  `statusMap` has the optional `inProgress` key, the sync may queue ONE
+  `bulk-status-update` op moving that task's mirrored ClickUp task to in-progress.
+  **On that same update, set the task's `start_date` to today and record
+  `items[key].fields.startedAt`** — set-once: never overwrite an existing `startedAt`,
+  so re-flaying keeps the original start. The start-date write rides the status update
+  (zero extra calls). Normal budget rules apply. If `inProgress` is absent, skip
+  silently — never invent a status.
+- **clickup-sync — stopwatch (opt-in: `trackTime: true`).** Skipped entirely when
+  `trackTime` is off/absent. Orthogonal to the status flip — the timer needs only the
+  `taskId`, not a status, so it runs even if `inProgress` is absent. **START** the
+  running timer (`start_time_tracking task_id`)
+  when a live flay names a mapped task and no `activeTimer` already covers it, then
+  record top-level `activeTimer`. Idempotent: an `activeTimer` already on that task =
+  already running → do nothing. **STOP** it (`stop_time_tracking`, then clear
+  `activeTimer`) when the timed task reaches its terminal **complete** status (the
+  `[x]` / `Completes:` flip — § Derived lifecycle), so the entry logs the actual time
+  taken; ALSO stop-and-clear as a safety net if `activeTimer` names a task whose
+  flay-state is gone and which is no longer in-progress (an abandoned flay must never
+  leave a timer running forever). A Needs-QA / `qa` flip does NOT stop it — the
+  stopwatch runs until Completes. Each start/stop is ONE ledgered, budget-gated call;
+  timer ops are best-effort — on budget exhaustion or a tool error, SKIP (never queue a
+  stale timer op, never block the sync). Time-tracking tools unavailable →
+  degrade-and-skip.
+- **clickup-sync — qa completion (advisory, same standing as flay-state).** A mapped
+  key with a passing verdict at `.captain-sdlc/qa/<key>/verdict.json` (`result: "pass"`)
+  → move it from its `qa`/review status to `statusMap.done` (Closed/Done) and STOP its
+  stopwatch (clear `activeTimer`). Set `derivedStatus: complete`; idempotent — skip when
+  already complete. A second sanctioned complete-emitter alongside the `[x]` checked-flip
+  path (both guard on `derivedStatus`, so no double-write); the canonical `[x]` still
+  lands via the Seam 7 release pass — this mirrors the qa decision the moment it passes.
+- **Hook-driven triggers (only when `trackTime: true`).** flay and qa never call the
+  tracker or this skill — they only write their captain-sdlc state files (the "never
+  calls a tracker" rule is preserved). The clickup plugin TIES INTO those writes: a
+  `PostToolUse` hook (`plugin/hooks/hooks.json` → `lib/clickup-lifecycle-hook.mjs`,
+  ADR 0002) fires on a Write/Edit and nudges `clickup-sync` for the active RC on two
+  lifecycle events — (1) a fresh **flay begin** (a `flay-state.json` write for a mapped
+  task not yet in-progress) → in-progress + stopwatch START; (2) a **qa pass** (a
+  `qa/<key>/verdict.json` with `result: "pass"` for a mapped task not yet complete) →
+  QA/Review → Done + stopwatch STOP. The actual ClickUp calls still go through the
+  budget-ledgered skill, never the hook script. Idempotent: each trigger skips once the
+  task already shows the target `derivedStatus` (`in-progress` / `complete`), so flay's
+  per-phase rewrites and a lingering verdict file don't re-fire. With `trackTime` off the
+  hook no-ops — sync stays manual (today's behavior).
+- **clickup-status**: report the active task (key, phase, age) and any running
+  `activeTimer` alongside drift.
 
 ## Derived lifecycle on sync
 
@@ -522,6 +573,9 @@ drafts of this doc assumed a "Create Bulk Tasks" tool; it does not exist. So:
 | One body/spec write        | Get Task + Update Task (2 calls)        |
 | Add a tag to a task        | Add Tag to Task (`blocked-dep`/`blocked-hitl`) |
 | Remove a tag from a task   | Remove Tag from Task                    |
+| Start the stopwatch        | Start Time Tracking (`task_id`)         |
+| Stop the stopwatch         | Stop Time Tracking (stops the one running) |
+| Read the running timer     | Get Current Time Entry                  |
 
 ## Idempotency and crash recovery
 
