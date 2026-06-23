@@ -43,11 +43,19 @@ lookup (changing the project Folder or an RC's target list requires one
       task's DOD / Automated coverage / Human QA steps block (+2 ledgered calls per
       touched task — warn if budget is tight). Off/absent: no spec work, no spec
       spend. Works best with `inProgress` + `qa` statusMap keys set.
-   7. **Pending ops** — show count/ages; offer to drain now (runs the clickup-sync
+   7. **Time tracking (stopwatch)** — toggle the optional `trackTime` key (protocol
+      § Flay awareness). On: opt into the flay-driven workflow — a `PostToolUse` hook
+      nudges a `clickup-sync` when you /flay a mapped ticket, so it flips to
+      in-progress and its ClickUp stopwatch starts in real time; the stopwatch stops
+      when the ticket reaches Completes (logs actual time taken; +1 ledgered call per
+      transition). NOTE: ClickUp runs ONE timer per user, so starting the mirror's
+      timer stops any other you have running. Off/absent: no timer, and the mirror
+      updates only on a manual sync (the default). Data is collected only for now.
+   8. **Pending ops** — show count/ages; offer to drain now (runs the clickup-sync
       flow) or to discard specific ops (confirm each discard; discarding is the
       ONLY destructive act in this plugin and touches only the local queue, never
       ClickUp).
-   8. **CLAUDE.md workflow block** — see below.
+   9. **CLAUDE.md workflow block** — see below.
 3. **Write** the sidecar after each change (not once at the end).
 
 ## CLAUDE.md managed block
@@ -64,6 +72,10 @@ append otherwise. Never touch content outside the markers.
   /clickup-sync for an already-mapped RC.
 - After checking off RC items by hand, run /clickup-sync when you want the mirror
   current. /clickup-status shows drift and call budget for free first.
+- With time tracking on (`trackTime`): /flay-ing a mapped ticket auto-flips it to
+  in-progress and starts its ClickUp stopwatch, and a passing /qa moves it from
+  Review to Done and stops the stopwatch (a plugin hook triggers the sync on each). No
+  manual sync needed for those transitions.
 - Markdown is canonical. Never edit task state in ClickUp directly.
 <!-- END claude-interrogate-clickup workflow (managed by /clickup-setup) -->
 ```
